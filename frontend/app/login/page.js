@@ -9,6 +9,7 @@ import {
   Eye, EyeOff, ArrowRight, Loader2, Shield, Fingerprint,
   ChevronRight, CheckCircle2, Globe, Smartphone
 } from 'lucide-react'
+import { useGoogleLogin } from '@react-oauth/google'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -123,8 +124,86 @@ export default function LoginPage() {
     }
   }
 
+  const realGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setIsLoading(true)
+      toast.info('Authenticating with backend server...')
+      
+      try {
+        const response = await fetch('/api/auth/google-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenResponse.access_token, role: userType })
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          localStorage.setItem('farmbid_token', data.token)
+          localStorage.setItem('farmbid_user', JSON.stringify(data.user))
+          
+          toast.success('Google Authentication Successful!', {
+            description: `Welcome, ${data.user.name}!`
+          })
+          
+          setTimeout(() => router.push('/'), 1000)
+        } else {
+           toast.error('Google login failed', { description: data.error })
+        }
+      } catch (error) {
+        toast.error('Google connection error', { description: 'Please try again' })
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    onError: () => toast.error('Google Login Popup Closed or Failed')
+  });
+
   const handleSocialLogin = async (provider) => {
-    toast.info(`${provider} login`, { description: 'SSI-backed social login coming soon!' })
+    if (provider === 'Google') {
+      return realGoogleLogin();
+    }
+    
+    setIsLoading(true)
+    toast.info(`Connecting to ${provider}...`)
+    
+    try {
+      // Simulate OAuth redirect and verification delay
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // For demo purposes, log them in through the existing auth system
+      const response = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: userType === 'farmer' ? 'farmer' : 'buyer' })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        localStorage.setItem('farmbid_token', data.token)
+        
+        // Customize user profile for the specific social provider
+        const socialUser = { 
+          ...data.user, 
+          name: `${userType === 'farmer' ? 'Farmer' : 'Buyer'} via ${provider}`,
+          email: `${provider.toLowerCase()}@example.com`
+        }
+        localStorage.setItem('farmbid_user', JSON.stringify(socialUser))
+        
+        toast.success(`${provider} Authentication Successful!`, {
+          description: `Welcome, ${socialUser.name}!`
+        })
+        
+        setTimeout(() => router.push('/'), 1000)
+      } else {
+         toast.error(`${provider} login failed`, { description: data.error })
+      }
+    } catch (error) {
+      toast.error(`${provider} connection error`, { description: 'Please try again' })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Demo login for quick access

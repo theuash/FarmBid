@@ -10,9 +10,18 @@ const walletTransactionSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  razorpayOrderId: {
+    type: String
+  },
+  razorpayPaymentId: {
+    type: String
+  },
+  razorpaySignature: {
+    type: String
+  },
   type: {
     type: String,
-    enum: ['topup', 'bid_escrow', 'release_to_farmer', 'refund', 'fee_charge', 'settlement'],
+    enum: ['topup', 'bid_escrow', 'release_to_farmer', 'refund', 'fee_charge', 'settlement', 'credit'],
     required: true
   },
   amount: {
@@ -49,8 +58,8 @@ const walletTransactionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed', 'cancelled'],
-    default: 'completed'
+    enum: ['pending', 'completed', 'failed', 'cancelled', 'success'],
+    default: 'success'
   }
 }, {
   timestamps: true
