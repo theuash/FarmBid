@@ -439,21 +439,22 @@ const handleFarmerMessage = async (msg) => {
 };
 
 // ========== STARTUP ==========
-(async () => {
-  await ensureUploadDir();
-  loadPendingMessages();
-  await initClient();
-
-  // Graceful shutdown
-  process.on('SIGINT', async () => {
-    console.log('\n[WhatsApp] Shutting down...');
-    savePendingMessages();
-    if (client) {
-      try { await client.destroy(); } catch (e) {}
-    }
-    process.exit(0);
-  });
-})();
+// DISABLED: Auto-initialization moved to whatsapp.final.js
+// (async () => {
+//   await ensureUploadDir();
+//   loadPendingMessages();
+//   await initClient();
+//
+//   // Graceful shutdown
+//   process.on('SIGINT', async () => {
+//     console.log('\n[WhatsApp] Shutting down...');
+//     savePendingMessages();
+//    if (client) {
+//      try { await client.destroy(); } catch (e) {}
+//    }
+//    process.exit(0);
+//  });
+// })();
 
 // ========== EXPORTS ==========
 module.exports = {

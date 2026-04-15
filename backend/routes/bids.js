@@ -8,7 +8,7 @@ const WalletTransaction = require('../models/WalletTransaction');
 const Buyer = require('../models/Buyer');
 const Farmer = require('../models/Farmer');
 const { anchorToBlockchain, createBlockchainEvent } = require('../utils/blockchain');
-const { sendWhatsAppMessage } = require('../utils/whatsapp');
+const { sendWhatsAppMessage } = require('../utils/whatsapp.final');
 const { v4: uuidv4 } = require('uuid');
 const { bidValidation, handleValidationErrors } = require('../middleware/validation');
 const { authenticateJWT, authorizeRole } = require('../middleware/auth');
@@ -40,13 +40,13 @@ router.post('/', authenticateJWT, authorizeRole('buyer'), handleValidationErrors
     }
 
     if (!listing) {
-      listing = Array.from(require('../utils/whatsapp').listingStore.values()).find(
+      listing = Array.from(require('../utils/whatsapp.final').listingStore.values()).find(
         l => l.id === listingId || l.listingId === listingId
       );
       if (listing) {
         // Mock a save() function for in-memory listing to avoid crashes
         listing.save = async () => {
-          require('../utils/whatsapp').listingStore.set(listing.listingId || listing.id, listing);
+          require('../utils/whatsapp.final').listingStore.set(listing.listingId || listing.id, listing);
           return listing;
         };
         // Add required fields if missing for Bid relation

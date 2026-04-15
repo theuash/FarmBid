@@ -9,6 +9,16 @@ const {
   verifyUPI,
   createListing
 } = require('./mockAPIs');
+const {
+  createButtonMenu,
+  createLanguageMenu,
+  createMainMenu,
+  createProduceSelectionMenu,
+  createConfirmationMenu,
+  createProgressMenu,
+  createServicesMenu,
+  parseButtonResponse
+} = require('./whatsappInteractive');
 
 const sessionPath = process.env.WHATSAPP_SESSION_PATH
   ? path.resolve(process.cwd(), process.env.WHATSAPP_SESSION_PATH)
@@ -115,7 +125,10 @@ const getOrCreateFarmer = (phone) => {
       tempListing: {},
       registeredAt: null,
       totalListings: 0,
-      violations: 0
+      violations: 0,
+      language: 'en', // Default language
+      currentMenu: null, // Track current menu buttons
+      lastMenuTimestamp: null // Prevent rapid menu changes
     };
     farmerStore.set(normalized, farmer);
     console.log(`[WhatsApp] created new farmer record for ${normalized}`);

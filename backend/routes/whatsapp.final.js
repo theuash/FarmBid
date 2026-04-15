@@ -10,7 +10,7 @@ const {
   notifyFarmerPaymentSent,
   notifyFarmerDispute,
   notifyFarmerListingExpired
-} = require('../utils/whatsapp');
+} = require('../utils/whatsapp.final');
 
 const ensureClientReady = (res) => {
   if (!isReady()) {

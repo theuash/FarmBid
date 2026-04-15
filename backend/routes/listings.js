@@ -5,7 +5,7 @@ const Farmer = require('../models/Farmer');
 const Bid = require('../models/Bid');
 const { updateAuctionStatus } = require('../utils/auctionTimer');
 const { anchorToBlockchain, createBlockchainEvent } = require('../utils/blockchain');
-const { sendWhatsAppMessage, listingStore } = require('../utils/whatsapp');
+const { sendWhatsAppMessage, listingStore } = require('../utils/whatsapp.final');
 const { v4: uuidv4 } = require('uuid');
 const { listingValidation, handleValidationErrors } = require('../middleware/validation');
 
