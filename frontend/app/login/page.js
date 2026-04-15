@@ -17,9 +17,10 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [userType, setUserType] = useState('buyer') // buyer, farmer, admin
+  const [useOTP, setUseOTP] = useState(false) // Toggle between password and OTP
   
   // Form states
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' })
+  const [loginForm, setLoginForm] = useState({ email: '', password: '', phone: '' })
   const [signupForm, setSignupForm] = useState({
     name: '',
     email: '',
@@ -29,6 +30,13 @@ export default function LoginPage() {
     location: '',
     userType: 'buyer'
   })
+
+  // OTP states
+  const [otpStep, setOtpStep] = useState(0) // 0: initial, 1: otp sent, 2: verifying
+  const [otpCode, setOtpCode] = useState('')
+  const [otpPhone, setOtpPhone] = useState('')
+  const [otpExpiry, setOtpExpiry] = useState(null)
+  const [otpAttempts, setOtpAttempts] = useState(0)
 
   // SSI verification state
   const [ssiStep, setSsiStep] = useState(0) // 0: form, 1: verifying, 2: credential issued
@@ -239,6 +247,157 @@ export default function LoginPage() {
       }
     } catch (error) {
       toast.error('Demo login failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // OTP Authentication Methods
+  const handleSendOTP = async (phone, purpose = 'login') => {
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      toast.error('Invalid phone number', { description: 'Please enter a valid 10-digit phone number' })
+      return false
+    }
+
+    setIsLoading(true)
+    setOtpPhone(phone)
+    
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          userType,
+          purpose,
+          email: isSignUp ? signupForm.email : loginForm.email
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setOtpStep(1)
+        setOtpExpiry(Date.now() + (data.expiryMinutes * 60 * 1000))
+        setOtpAttempts(0)
+        toast.success('OTP Sent!', { description: `Check your phone ${phone}` })
+        return true
+      } else {
+        toast.error('Failed to send OTP', { description: data.error })
+        return false
+      }
+    } catch (error) {
+      console.error('Send OTP error:', error)
+      toast.error('Connection error', { description: 'Failed to send OTP' })
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleVerifyOTP = async (phone, otp, purpose = 'login') => {
+    if (!otp || otp.length !== 6) {
+      toast.error('Invalid OTP', { description: 'Please enter a valid 6-digit OTP' })
+      return
+    }
+
+    setIsLoading(true)
+    setOtpStep(2)
+
+    try {
+      let userData = null
+      
+      // If signup, include user data
+      if (purpose === 'signup' && isSignUp) {
+        userData = {
+          name: signupForm.name,
+          email: signupForm.email,
+          password: signupForm.password,
+          phone,
+          location: signupForm.location
+        }
+      }
+
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          otp,
+          userType,
+          userData
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Store token and user data
+        localStorage.setItem('farmbid_token', data.token)
+        localStorage.setItem('farmbid_user', JSON.stringify(data.user))
+
+        const message = data.isNewUser ? 'Account created!' : 'Welcome back!'
+        toast.success(message, {
+          description: `Logged in as ${data.user.name}`
+        })
+
+        // Reset forms
+        setOtpStep(0)
+        setOtpCode('')
+        setLoginForm({ email: '', password: '', phone: '' })
+        setSignupForm({
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          phone: '',
+          location: '',
+          userType: 'buyer'
+        })
+        setUseOTP(false)
+
+        // Redirect after a moment
+        setTimeout(() => {
+          router.push('/')
+        }, 1000)
+      } else {
+        setOtpStep(1)
+        toast.error('OTP verification failed', { 
+          description: data.error || 'Invalid OTP. Please try again.' 
+        })
+      }
+    } catch (error) {
+      console.error('Verify OTP error:', error)
+      setOtpStep(1)
+      toast.error('Connection error', { description: 'Please try again' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendOTP = async () => {
+    if (!otpPhone) return
+    
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/auth/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: otpPhone })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setOtpExpiry(Date.now() + (data.expiryMinutes * 60 * 1000))
+        setOtpAttempts(0)
+        setOtpCode('')
+        toast.success('OTP Resent!', { description: 'Check your phone for the new OTP' })
+      } else {
+        toast.error('Failed to resend OTP', { description: data.error })
+      }
+    } catch (error) {
+      toast.error('Connection error', { description: 'Please try again' })
     } finally {
       setIsLoading(false)
     }
