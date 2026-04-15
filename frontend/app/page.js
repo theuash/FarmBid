@@ -1331,12 +1331,12 @@ export default function App() {
                         </div>
                         <Separator orientation="vertical" className="h-12" />
                         <div className="text-center">
-                          <p className="text-3xl font-bold">58,234,600</p>
+                          <p className="text-3xl font-bold text-muted-foreground">0</p>
                           <p className="text-sm text-muted-foreground">Latest Block</p>
                         </div>
                         <Separator orientation="vertical" className="h-12" />
                         <div className="text-center">
-                          <p className="text-3xl font-bold text-green-500">100%</p>
+                          <p className="text-3xl font-bold text-muted-foreground">0%</p>
                           <p className="text-sm text-muted-foreground">Verification Rate</p>
                         </div>
                       </div>
@@ -1750,100 +1750,20 @@ export default function App() {
 
                     <TabsContent value="active" className="mt-4">
                       <Card>
-                        <CardContent className="pt-6">
-                          <div className="space-y-4">
-                            <div className="p-4 border rounded-lg">
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="text-3xl">🍅</div>
-                                  <div>
-                                    <h3 className="font-semibold">Tomatoes - 500 kg</h3>
-                                    <p className="text-sm text-muted-foreground">Order #KOL-2025-0628</p>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={() => handleEscrowLock('KOL-2025-0628', '0x7e...7b8c', 0.05)}
-                                  >
-                                    <Lock className="h-3 w-3 mr-1" /> Lock Escrow
-                                  </Button>
-                                  <Badge>Awaiting Pickup</Badge>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-4 gap-4 mb-4">
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Farmer</p>
-                                  <p className="font-medium">Ramappa Gowda</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Final Price</p>
-                                  <p className="font-medium">₹38/kg</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Total Value</p>
-                                  <p className="font-semibold text-primary">₹19,000</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Est. Delivery</p>
-                                  <p className="font-medium">Today, 4 PM</p>
-                                </div>
-                              </div>
-
-                              {/* Order Progress */}
-                              <div className="flex items-center justify-between mb-2">
-                                {['Won', 'Escrow', 'Pickup', 'Transit', 'Delivered'].map((step, i) => (
-                                  <div key={step} className="flex flex-col items-center">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                      i <= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                                    }`}>
-                                      {i <= 1 ? <Check className="h-4 w-4" /> : i + 1}
-                                    </div>
-                                    <span className="text-xs mt-1">{step}</span>
-                                  </div>
-                                ))}
-                              </div>
-                              <Progress value={40} className="h-2" />
-                            </div>
-                          </div>
+                        <CardContent className="flex flex-col items-center justify-center py-12">
+                          <div className="text-5xl mb-3 opacity-20">📦</div>
+                          <p className="font-medium">No active orders</p>
+                          <p className="text-sm text-muted-foreground">When you win an auction, your active order will appear here.</p>
                         </CardContent>
                       </Card>
                     </TabsContent>
 
                     <TabsContent value="completed" className="mt-4">
                       <Card>
-                        <CardContent className="pt-6">
-                          <div className="p-4 border rounded-lg">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="text-3xl">🍅</div>
-                                <div>
-                                  <h3 className="font-semibold">Tomatoes - 400 kg</h3>
-                                  <p className="text-sm text-muted-foreground">Order #KOL-2025-0625</p>
-                                </div>
-                              </div>
-                              <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Settled
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 mt-4">
-                              <div>
-                                <p className="text-sm text-muted-foreground">Final Price</p>
-                                <p className="font-medium">₹42/kg</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-muted-foreground">Total Paid</p>
-                                <p className="font-semibold">₹16,800</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-muted-foreground">Completed</p>
-                                <p className="font-medium">Jun 25, 2025</p>
-                              </div>
-                            </div>
-                          </div>
+                        <CardContent className="flex flex-col items-center justify-center py-12">
+                          <div className="text-5xl mb-3 opacity-20">✅</div>
+                          <p className="font-medium">No completed orders yet</p>
+                          <p className="text-sm text-muted-foreground">Your successfully settled orders will be recorded here.</p>
                         </CardContent>
                       </Card>
                     </TabsContent>
