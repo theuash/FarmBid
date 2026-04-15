@@ -19,6 +19,6 @@ export const useAppStore = create((set, get) => ({
   setDemoMode: (mode) => set({ demoMode: mode }),
   
   // Wallet balance
-  walletBalance: 50000,
+  walletBalance: 0,
   updateWalletBalance: (amount) => set((state) => ({ walletBalance: state.walletBalance + amount })),
 }))

@@ -597,6 +597,104 @@ const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
   )
 }
 
+// Payment Dialog
+const PaymentDialog = ({ isOpen, onClose, amount, onConfirm }) => {
+  const [method, setMethod] = useState('phonepe')
+
+  const methods = [
+    { 
+      id: 'phonepe', 
+      name: 'PhonePe', 
+      isImage: true, 
+      imgSrc: 'https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg' 
+    },
+    { 
+      id: 'gpay', 
+      name: 'Google Pay', 
+      isImage: true, 
+      imgSrc: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.png' 
+    },
+    { 
+      id: 'razorpay', 
+      name: 'Razorpay', 
+      isImage: true, 
+      imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' 
+    },
+    { 
+      id: 'card', 
+      name: 'Credit/Debit Card', 
+      isImage: true, 
+      imgSrc: 'https://img.icons8.com/fluency/96/bank-cards.png' 
+    },
+  ]
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Complete Payment</DialogTitle>
+          <DialogDescription>
+            Select a payment method to add {formatINR(amount || 0)} to your wallet.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            {methods.map((m) => (
+              <div
+                key={m.id}
+                className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all ${
+                  method === m.id ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'hover:bg-muted'
+                }`}
+                onClick={() => setMethod(m.id)}
+              >
+                <div className="h-10 flex items-center justify-center mb-1">
+                  {m.isImage ? (
+                    <img src={m.imgSrc} alt={m.name} className="max-h-8 max-w-[100px] object-contain" />
+                  ) : (
+                    <div className="text-3xl">{m.icon}</div>
+                  )}
+                </div>
+                <div className="font-medium text-sm text-center">{m.name}</div>
+              </div>
+            ))}
+          </div>
+
+          {method === 'card' && (
+            <div className="space-y-3 mt-2 p-4 border rounded-lg bg-muted/30">
+              <div className="space-y-1">
+                <Label>Card Number</Label>
+                <Input placeholder="0000 0000 0000 0000" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Expiry</Label>
+                  <Input placeholder="MM/YY" />
+                </div>
+                <div className="space-y-1">
+                  <Label>CVV</Label>
+                  <Input placeholder="123" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {method !== 'card' && (
+            <div className="space-y-3 mt-2 p-4 border rounded-lg bg-muted/30 text-center">
+              <p className="text-sm text-muted-foreground">You will be redirected to the {methods.find(m => m.id === method)?.name} portal to securely complete this transaction.</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onConfirm(method)}>Pay {formatINR(amount || 0)}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // Main App Component
 export default function App() {
   const [darkMode, setDarkMode] = useState(false)
@@ -607,12 +705,14 @@ export default function App() {
   const [selectedListing, setSelectedListing] = useState(null)
   const [bidDialogOpen, setBidDialogOpen] = useState(false)
   const [blockchainEvents, setBlockchainEvents] = useState([])
-  const [walletBalance, setWalletBalance] = useState(50000)
+  const [walletBalance, setWalletBalance] = useState(0)
+  const [lockedBids, setLockedBids] = useState(0)
   const [whatsappLanguage, setWhatsappLanguage] = useState('english')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [topupAmount, setTopupAmount] = useState('')
   const [topupLoading, setTopupLoading] = useState(false)
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   
   // Authentication state
   const [currentUser, setCurrentUser] = useState(null)
@@ -645,7 +745,7 @@ export default function App() {
             const user = data.user;
             setCurrentUser(user);
             setIsAuthenticated(true);
-            setWalletBalance(user.walletBalance || 50000);
+            setWalletBalance(0);
           } else {
             // Token invalid or expired
             console.error('Auth verification failed:', data.error);
@@ -685,7 +785,7 @@ export default function App() {
         setListings(listingsData.listings || [])
         setBlockchainEvents(eventsData.events || [])
         if (walletData.success) {
-          setWalletBalance(walletData.available)
+          setWalletBalance(0)
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -816,10 +916,11 @@ export default function App() {
     }
   }
 
-  const handleTopup = async () => {
+  const handleTopupClick = () => {
     if (!isAuthenticated || !currentUser) {
       toast.error('Please login to top up wallet');
-      router.push('/login');
+      // If we use Next router, it would be router.push. Fallback to location:
+      window.location.href = '/login';
       return;
     }
 
@@ -827,7 +928,11 @@ export default function App() {
       toast.error('Please enter a valid amount')
       return
     }
+    setPaymentDialogOpen(true)
+  }
 
+  const handlePaymentConfirm = async (method) => {
+    setPaymentDialogOpen(false)
     setTopupLoading(true)
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -841,15 +946,15 @@ export default function App() {
         body: JSON.stringify({
           userId: currentUser.id,
           amount: parseFloat(topupAmount),
-          paymentMethod: 'upi'
+          paymentMethod: method
         })
       })
       const data = await response.json()
       if (data.success) {
-        setWalletBalance(data.newBalance)
+        setWalletBalance(prev => prev + parseFloat(topupAmount))
         setTopupAmount('')
         toast.success('Wallet topped up successfully!', {
-          description: `₹${topupAmount} has been added to your wallet.`
+          description: `₹${topupAmount} has been added via ${method}.`
         })
       } else {
         toast.error(data.error || 'Topup failed')
@@ -1114,10 +1219,10 @@ export default function App() {
 
                   {/* Quick Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend="+₹5,000 today" trendUp />
-                    <KPICard title="Active Bids" value="3" icon={Gavel} trend="2 leading" trendUp />
-                    <KPICard title="Won Auctions" value="12" icon={Award} trend="+2 this week" trendUp />
-                    <KPICard title="Total Saved" value="₹24,500" icon={TrendingUp} trend="vs mandi rates" trendUp />
+                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend="+₹0 today" />
+                    <KPICard title="Active Bids" value="0" icon={Gavel} trend="0 leading" />
+                    <KPICard title="Won Auctions" value="0" icon={Award} trend="+0 this week" />
+                    <KPICard title="Total Saved" value="₹0" icon={TrendingUp} trend="+0% vs mandi rates" />
                   </div>
 
                   {/* Featured Auctions */}
@@ -1638,46 +1743,10 @@ export default function App() {
                         <CardTitle>Pending Actions</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <AlertTriangle className="h-5 w-5 text-amber-500" />
-                              <div>
-                                <p className="font-medium">1 Dispute Pending</p>
-                                <p className="text-sm text-muted-foreground">Weight mismatch claim</p>
-                              </div>
-                            </div>
-                            <Button size="sm">Review</Button>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <Users className="h-5 w-5 text-blue-500" />
-                              <div>
-                                <p className="font-medium">3 Farmer Verifications</p>
-                                <p className="text-sm text-muted-foreground">Land records pending</p>
-                              </div>
-                            </div>
-                            <Button size="sm" variant="outline">View</Button>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <Shield className="h-5 w-5 text-red-500" />
-                              <div>
-                                <p className="font-medium">2 Fraud Alerts</p>
-                                <p className="text-sm text-muted-foreground">Suspicious patterns detected</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                onClick={() => handleEscrowPenalize('KOL-2025-0628', 'farmer', 'Fraud detected')}
-                              >
-                                Penalize Farmer
-                              </Button>
-                              <Button size="sm" variant="outline">Investigate</Button>
-                            </div>
-                          </div>
+                        <div className="space-y-3 text-center py-8">
+                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">✅</div>
+                          <p className="text-muted-foreground font-medium">No actions required</p>
+                          <p className="text-sm text-muted-foreground opacity-70">You have 0 disputes and 0 pending verifications.</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -1700,13 +1769,13 @@ export default function App() {
                     <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
                       <CardContent className="pt-6">
                         <p className="text-sm opacity-80">Available Balance</p>
-                        <p className="text-3xl font-bold mt-1">{formatINR(walletBalance - 18400)}</p>
+                        <p className="text-3xl font-bold mt-1">{formatINR(walletBalance - lockedBids)}</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="pt-6">
                         <p className="text-sm text-muted-foreground">Locked in Bids</p>
-                        <p className="text-2xl font-bold mt-1 text-amber-500">{formatINR(18400)}</p>
+                        <p className="text-2xl font-bold mt-1 text-amber-500">{formatINR(lockedBids)}</p>
                       </CardContent>
                     </Card>
                     <Card>
@@ -1746,8 +1815,8 @@ export default function App() {
                         </div>
                         <Button 
                           className="w-full" 
-                          onClick={handleTopup}
-                          disabled={topupLoading}
+                          onClick={handleTopupClick}
+                          disabled={topupLoading || !topupAmount}
                         >
                           <CreditCard className="h-4 w-4 mr-2" />
                           {topupLoading ? 'Processing...' : 'Add via UPI / Card'}
@@ -1760,26 +1829,10 @@ export default function App() {
                         <CardTitle>Recent Transactions</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-3">
-                          {[
-                            { type: 'Bid Placed', amount: -8250, listing: 'Tomatoes 500kg', time: '2 hours ago' },
-                            { type: 'Wallet Top-up', amount: 25000, method: 'UPI', time: '1 day ago' },
-                            { type: 'Settlement', amount: -16464, listing: 'Tomatoes 400kg', time: '3 days ago' },
-                            { type: 'Refund', amount: 1500, listing: 'Partial dispute', time: '5 days ago' }
-                          ].map((tx, i) => (
-                            <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                              <div>
-                                <p className="font-medium">{tx.type}</p>
-                                <p className="text-sm text-muted-foreground">{tx.listing || tx.method}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className={`font-semibold ${tx.amount > 0 ? 'text-green-500' : ''}`}>
-                                  {tx.amount > 0 ? '+' : ''}{formatINR(Math.abs(tx.amount))}
-                                </p>
-                                <p className="text-xs text-muted-foreground">{tx.time}</p>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="space-y-3 text-center py-8">
+                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">📭</div>
+                          <p className="text-muted-foreground font-medium">No recent transactions</p>
+                          <p className="text-sm text-muted-foreground opacity-70">Your payment and top-up history will appear here.</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -1907,39 +1960,10 @@ export default function App() {
 
                     <TabsContent value="disputed" className="mt-4">
                       <Card>
-                        <CardContent className="pt-6">
-                          <div className="p-4 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950/20">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="text-3xl">🌶️</div>
-                                <div>
-                                  <h3 className="font-semibold">Green Chilies - 100 kg</h3>
-                                  <p className="text-sm text-muted-foreground">Order #BLR-2025-0624</p>
-                                </div>
-                              </div>
-                              <Badge variant="destructive">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Dispute Open
-                              </Badge>
-                            </div>
-                            <div className="mt-4 p-3 bg-white dark:bg-zinc-900 rounded">
-                              <p className="text-sm font-medium">Issue: Weight Mismatch</p>
-                              <p className="text-sm text-muted-foreground">
-                                Received 92kg instead of listed 100kg (8% difference)
-                              </p>
-                            </div>
-                            <div className="flex gap-2 mt-4">
-                              <Button size="sm">View Details</Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => handleEscrowRelease('BLR-2025-0624')}
-                              >
-                                <CheckCircle2 className="h-3 w-3 mr-1" /> Confirm & Pay
-                              </Button>
-                              <Button size="sm" variant="outline">Add Evidence</Button>
-                            </div>
-                          </div>
+                        <CardContent className="flex flex-col items-center justify-center py-12">
+                          <div className="text-5xl mb-3 opacity-20">👍</div>
+                          <p className="font-medium">No disputed orders</p>
+                          <p className="text-sm text-muted-foreground">You don't have any orders currently under dispute.</p>
                         </CardContent>
                       </Card>
                     </TabsContent>
@@ -1958,83 +1982,13 @@ export default function App() {
                 >
                   <h1 className="text-2xl font-bold">Dispute Center</h1>
 
-                  <Card className="border-amber-200 dark:border-amber-900">
-                    <CardHeader className="bg-amber-50 dark:bg-amber-950/30">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <AlertTriangle className="h-5 w-5 text-amber-500" />
-                          Active Dispute #D-2025-0624
-                        </CardTitle>
-                        <Badge variant="outline">Pending Review</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-6 space-y-6">
-                      <div className="grid md:grid-cols-2 gap-6">
-                        <div>
-                          <h4 className="font-semibold mb-3">Order Details</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Produce</span>
-                              <span>Green Chilies - 100 kg</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Farmer</span>
-                              <span>Manjunath Kumar (KA-BLR-001)</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Order Value</span>
-                              <span>₹6,200</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Delivered</span>
-                              <span>Jun 24, 2025</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <h4 className="font-semibold mb-3">Dispute Reason</h4>
-                          <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
-                            <Badge variant="destructive" className="mb-2">Weight Mismatch</Badge>
-                            <p className="text-sm">
-                              Received 92kg instead of listed 100kg. Difference of 8% exceeds the 5% tolerance threshold.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      <div>
-                        <h4 className="font-semibold mb-3">Resolution Proposal</h4>
-                        <div className="grid md:grid-cols-3 gap-4">
-                          <Card>
-                            <CardContent className="pt-4 text-center">
-                              <p className="text-sm text-muted-foreground">Proposed Refund</p>
-                              <p className="text-2xl font-bold text-green-500">₹496</p>
-                              <p className="text-xs text-muted-foreground">8% of order value</p>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="pt-4 text-center">
-                              <p className="text-sm text-muted-foreground">Farmer Trust Impact</p>
-                              <p className="text-2xl font-bold text-red-500">-12</p>
-                              <p className="text-xs text-muted-foreground">Score penalty</p>
-                            </CardContent>
-                          </Card>
-                          <Card>
-                            <CardContent className="pt-4 text-center">
-                              <p className="text-sm text-muted-foreground">Status</p>
-                              <Badge className="mt-2">Under Review</Badge>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button className="flex-1">Accept Resolution</Button>
-                        <Button variant="outline" className="flex-1">Escalate</Button>
-                      </div>
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                      <div className="text-6xl mb-4 opacity-20 hover:opacity-40 transition-opacity">🤝</div>
+                      <h3 className="text-xl font-semibold mb-2">No Active Disputes</h3>
+                      <p className="text-muted-foreground text-center max-w-sm">
+                        You're all caught up! There are no orders requiring dispute resolution or mediation at this time.
+                      </p>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -2189,6 +2143,14 @@ export default function App() {
           isOpen={bidDialogOpen}
           onClose={() => setBidDialogOpen(false)}
           onSubmit={handleSubmitBid}
+        />
+
+        {/* Payment Dialog */}
+        <PaymentDialog
+          isOpen={paymentDialogOpen}
+          onClose={() => setPaymentDialogOpen(false)}
+          amount={topupAmount}
+          onConfirm={handlePaymentConfirm}
         />
       </div>
     </TooltipProvider>
