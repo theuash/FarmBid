@@ -158,12 +158,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{
-      background: 'linear-gradient(135deg, #e0e5ec 0%, #f0f4f8 50%, #e8eef3 100%)'
+      background: '#FFFFFF'
     }}>
       {/* Background decorative elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-teal-200/30 to-cyan-200/30 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-green-200/30 to-emerald-200/30 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-[#228B22]/10 to-[#228B22]/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-[#228B22]/10 to-[#228B22]/5 rounded-full blur-3xl" />
       </div>
 
       {/* Main Container */}
@@ -173,8 +173,8 @@ export default function LoginPage() {
         className="relative w-full max-w-4xl"
       >
         {/* Neuromorphic Card */}
-        <div className="relative bg-[#e0e5ec] rounded-[30px] overflow-hidden" style={{
-          boxShadow: '20px 20px 60px #bec3c9, -20px -20px 60px #ffffff'
+        <div className="relative bg-[#FFFFFF] rounded-[30px] overflow-hidden" style={{
+          boxShadow: '0 2px 8px rgba(38, 73, 65, 0.1)'
         }}>
           <div className="flex flex-col md:flex-row min-h-[600px]">
             
@@ -194,7 +194,7 @@ export default function LoginPage() {
             <motion.div
               className={`w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center items-center text-white relative overflow-hidden ${isSignUp ? 'md:order-2' : 'md:order-1'}`}
               style={{
-                background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #2dd4bf 100%)'
+                background: '#228B22'
               }}
               initial={false}
               animate={{ x: 0 }}
@@ -227,7 +227,7 @@ export default function LoginPage() {
                     </p>
                     <button
                       onClick={() => setIsSignUp(false)}
-                      className="px-8 py-3 border-2 border-white rounded-full font-semibold hover:bg-white hover:text-teal-600 transition-all duration-300"
+                      className="px-8 py-3 border-2 border-white rounded-full font-semibold hover:bg-white hover:text-[#264941] transition-all duration-300"
                     >
                       Sign In
                     </button>
@@ -240,7 +240,7 @@ export default function LoginPage() {
                     </p>
                     <button
                       onClick={() => setIsSignUp(true)}
-                      className="px-8 py-3 border-2 border-white rounded-full font-semibold hover:bg-white hover:text-teal-600 transition-all duration-300"
+                      className="px-8 py-3 border-2 border-white rounded-full font-semibold hover:bg-white hover:text-[#264941] transition-all duration-300"
                     >
                       Create Account
                     </button>
@@ -267,7 +267,7 @@ export default function LoginPage() {
                     exit={{ opacity: 0, scale: 0.9 }}
                     className="text-center"
                   >
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-[#264941] rounded-full flex items-center justify-center">
                       <CheckCircle2 className="h-10 w-10 text-white" />
                     </div>
                     <h3 className="text-2xl font-bold text-gray-800 mb-2">Credential Issued!</h3>
@@ -277,11 +277,11 @@ export default function LoginPage() {
                       boxShadow: 'inset 4px 4px 8px #d1d5db, inset -4px -4px 8px #ffffff'
                     }}>
                       <p className="text-xs text-gray-400 mb-1">DID (Decentralized Identifier)</p>
-                      <code className="text-xs text-teal-600 break-all">
+                      <code className="text-xs text-[#264941] break-all">
                         {verifiableCredential?.credentialSubject?.id || 'did:farmbid:user:...'}
                       </code>
                       <div className="flex items-center gap-2 mt-3">
-                        <Fingerprint className="h-4 w-4 text-teal-500" />
+                        <Fingerprint className="h-4 w-4 text-[#264941]" />
                         <span className="text-sm text-gray-600">Blockchain-anchored identity</span>
                       </div>
                     </div>
@@ -298,9 +298,9 @@ export default function LoginPage() {
                     className="text-center"
                   >
                     <div className="w-20 h-20 mx-auto mb-6 relative">
-                      <div className="absolute inset-0 border-4 border-teal-200 rounded-full" />
-                      <div className="absolute inset-0 border-4 border-teal-500 rounded-full border-t-transparent animate-spin" />
-                      <div className="absolute inset-4 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-full flex items-center justify-center">
+                      <div className="absolute inset-0 border-4 border-[#228B22]/20 rounded-full" />
+                      <div className="absolute inset-0 border-4 border-[#228B22] rounded-full border-t-transparent animate-spin" />
+                      <div className="absolute inset-4 bg-[#264941] rounded-full flex items-center justify-center">
                         <Shield className="h-6 w-6 text-white" />
                       </div>
                     </div>
@@ -329,14 +329,10 @@ export default function LoginPage() {
                         <button
                           key={provider}
                           onClick={() => handleSocialLogin(provider)}
-                          className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300"
+                          className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border border-gray-300 hover:bg-gray-50"
                           style={{
-                            background: '#e0e5ec',
-                            boxShadow: '5px 5px 10px #bec3c9, -5px -5px 10px #ffffff'
+                            background: '#FFFFFF'
                           }}
-                          onMouseDown={(e) => e.currentTarget.style.boxShadow = 'inset 3px 3px 6px #bec3c9, inset -3px -3px 6px #ffffff'}
-                          onMouseUp={(e) => e.currentTarget.style.boxShadow = '5px 5px 10px #bec3c9, -5px -5px 10px #ffffff'}
-                          onMouseLeave={(e) => e.currentTarget.style.boxShadow = '5px 5px 10px #bec3c9, -5px -5px 10px #ffffff'}
                         >
                           {provider === 'Google' && (
                             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -371,9 +367,8 @@ export default function LoginPage() {
                       {isSignUp && (
                         <>
                           {/* User Type Selection */}
-                          <div className="flex gap-2 p-1 rounded-full mb-4" style={{
-                            background: '#e0e5ec',
-                            boxShadow: 'inset 3px 3px 6px #bec3c9, inset -3px -3px 6px #ffffff'
+                          <div className="flex gap-2 p-1 rounded-full mb-4 border border-gray-300" style={{
+                            background: '#FFFFFF'
                           }}>
                             {[{id: 'buyer', label: 'Buyer', icon: Building2}, {id: 'farmer', label: 'Farmer', icon: Leaf}].map((type) => (
                               <button
@@ -382,7 +377,7 @@ export default function LoginPage() {
                                 onClick={() => setUserType(type.id)}
                                 className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                                   userType === type.id
-                                    ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg'
+                                    ? 'bg-[#228B22] text-white shadow-lg'
                                     : 'text-gray-500 hover:text-gray-700'
                                 }`}
                               >
@@ -403,10 +398,9 @@ export default function LoginPage() {
                               value={signupForm.name}
                               onChange={(e) => setSignupForm({...signupForm, name: e.target.value})}
                               required
-                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all"
+                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
                               style={{
-                                background: '#e0e5ec',
-                                boxShadow: 'inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff'
+                                background: '#FFFFFF'
                               }}
                             />
                           </div>
@@ -427,10 +421,9 @@ export default function LoginPage() {
                             : setLoginForm({...loginForm, email: e.target.value})
                           }
                           required
-                          className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all"
+                          className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
                           style={{
-                            background: '#e0e5ec',
-                            boxShadow: 'inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff'
+                            background: '#FFFFFF'
                           }}
                         />
                       </div>
@@ -449,10 +442,9 @@ export default function LoginPage() {
                             : setLoginForm({...loginForm, password: e.target.value})
                           }
                           required
-                          className="w-full pl-12 pr-12 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all"
+                          className="w-full pl-12 pr-12 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
                           style={{
-                            background: '#e0e5ec',
-                            boxShadow: 'inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff'
+                            background: '#FFFFFF'
                           }}
                         />
                         <button
@@ -477,10 +469,9 @@ export default function LoginPage() {
                               value={signupForm.confirmPassword}
                               onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})}
                               required
-                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all"
+                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
                               style={{
-                                background: '#e0e5ec',
-                                boxShadow: 'inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff'
+                                background: '#FFFFFF'
                               }}
                             />
                           </div>
@@ -495,10 +486,9 @@ export default function LoginPage() {
                               placeholder="Phone Number"
                               value={signupForm.phone}
                               onChange={(e) => setSignupForm({...signupForm, phone: e.target.value})}
-                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all"
+                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
                               style={{
-                                background: '#e0e5ec',
-                                boxShadow: 'inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff'
+                                background: '#FFFFFF'
                               }}
                             />
                           </div>
@@ -513,10 +503,9 @@ export default function LoginPage() {
                               placeholder="Location (City/District)"
                               value={signupForm.location}
                               onChange={(e) => setSignupForm({...signupForm, location: e.target.value})}
-                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all"
+                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
                               style={{
-                                background: '#e0e5ec',
-                                boxShadow: 'inset 5px 5px 10px #bec3c9, inset -5px -5px 10px #ffffff'
+                                background: '#FFFFFF'
                               }}
                             />
                           </div>
@@ -525,7 +514,7 @@ export default function LoginPage() {
 
                       {!isSignUp && (
                         <div className="text-right">
-                          <button type="button" className="text-sm text-teal-600 hover:text-teal-700">
+                          <button type="button" className="text-sm text-[#228B22] hover:text-[#228B22]/80">
                             Forgot password?
                           </button>
                         </div>
@@ -535,10 +524,9 @@ export default function LoginPage() {
                       <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-3 rounded-full font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2"
+                        className="w-full py-3 rounded-full font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 hover:opacity-90"
                         style={{
-                          background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #2dd4bf 100%)',
-                          boxShadow: '5px 5px 10px #bec3c9, -5px -5px 10px #ffffff'
+                          background: '#228B22'
                         }}
                       >
                         {isLoading ? (
@@ -558,31 +546,19 @@ export default function LoginPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleDemoLogin('buyer')}
-                          className="flex-1 py-2 px-3 text-xs font-medium text-gray-600 rounded-lg transition-all hover:bg-gray-100"
-                          style={{
-                            background: '#e0e5ec',
-                            boxShadow: '3px 3px 6px #bec3c9, -3px -3px 6px #ffffff'
-                          }}
+                          className="flex-1 py-2 px-3 text-xs font-medium text-white rounded-lg transition-all hover:opacity-90 bg-[#228B22]"
                         >
                           Demo Buyer
                         </button>
                         <button
                           onClick={() => handleDemoLogin('farmer')}
-                          className="flex-1 py-2 px-3 text-xs font-medium text-gray-600 rounded-lg transition-all hover:bg-gray-100"
-                          style={{
-                            background: '#e0e5ec',
-                            boxShadow: '3px 3px 6px #bec3c9, -3px -3px 6px #ffffff'
-                          }}
+                          className="flex-1 py-2 px-3 text-xs font-medium text-white rounded-lg transition-all hover:opacity-90 bg-[#228B22]"
                         >
                           Demo Farmer
                         </button>
                         <button
                           onClick={() => handleDemoLogin('admin')}
-                          className="flex-1 py-2 px-3 text-xs font-medium text-gray-600 rounded-lg transition-all hover:bg-gray-100"
-                          style={{
-                            background: '#e0e5ec',
-                            boxShadow: '3px 3px 6px #bec3c9, -3px -3px 6px #ffffff'
-                          }}
+                          className="flex-1 py-2 px-3 text-xs font-medium text-white rounded-lg transition-all hover:opacity-90 bg-[#228B22]"
                         >
                           Demo Admin
                         </button>
@@ -593,7 +569,7 @@ export default function LoginPage() {
                     <div className="md:hidden mt-6 text-center">
                       <button
                         onClick={() => setIsSignUp(!isSignUp)}
-                        className="text-teal-600 font-medium"
+                        className="text-[#264941] font-medium"
                       >
                         {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
                       </button>
@@ -612,8 +588,8 @@ export default function LoginPage() {
           transition={{ delay: 0.5 }}
           className="mt-6 text-center"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 backdrop-blur-sm text-sm text-gray-600">
-            <Fingerprint className="h-4 w-4 text-teal-500" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white backdrop-blur-sm text-sm text-gray-600 border border-gray-300">
+            <Fingerprint className="h-4 w-4 text-[#228B22]" />
             <span>Self-Sovereign Identity powered by Polygon blockchain</span>
           </div>
         </motion.div>
