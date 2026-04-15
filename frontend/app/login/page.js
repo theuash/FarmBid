@@ -570,37 +570,53 @@ export default function LoginPage() {
                       {isSignUp ? 'Join the agricultural revolution' : 'Welcome back to FarmBid'}
                     </p>
 
-                    {/* Social Login */}
-                    <div className="flex justify-center gap-4 mb-6">
-                      {['Google', 'Facebook', 'LinkedIn'].map((provider) => (
-                        <button
-                          key={provider}
-                          onClick={() => handleSocialLogin(provider)}
-                          className="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border border-gray-300 hover:bg-gray-50"
-                          style={{
-                            background: '#FFFFFF'
-                          }}
-                        >
-                          {provider === 'Google' && (
-                            <svg className="w-5 h-5" viewBox="0 0 24 24">
-                              <path fill="#EA4335" d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"/>
-                              <path fill="#34A853" d="M16.0407269,18.0125889 C14.9509167,18.7163016 13.5660892,19.0909091 12,19.0909091 C8.86648613,19.0909091 6.21911939,17.076871 5.27698177,14.2678769 L1.23746264,17.3349879 C3.19279051,21.2970244 7.26500293,24 12,24 C14.9328362,24 17.7353462,22.9573905 19.834192,20.9995801 L16.0407269,18.0125889 Z"/>
-                              <path fill="#4A90E2" d="M19.834192,20.9995801 C22.0291676,18.9520994 23.4545455,15.903663 23.4545455,12 C23.4545455,11.2909091 23.3454545,10.5272727 23.1818182,9.81818182 L12,9.81818182 L12,14.4545455 L18.4363636,14.4545455 C18.1187732,16.013626 17.2662994,17.2212117 16.0407269,18.0125889 L19.834192,20.9995801 Z"/>
-                              <path fill="#FBBC05" d="M5.27698177,14.2678769 C5.03832634,13.556323 4.90909091,12.7937589 4.90909091,12 C4.90909091,11.2182781 5.03443647,10.4668121 5.26620003,9.76452941 L1.23999023,6.65002441 C0.43658717,8.26043162 0,10.0753848 0,12 C0,13.9195484 0.444780743,15.7## 1.23746264,17.3349879 L5.27698177,14.2678769 Z"/>
-                            </svg>
-                          )}
-                          {provider === 'Facebook' && (
-                            <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
-                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                            </svg>
-                          )}
-                          {provider === 'LinkedIn' && (
-                            <svg className="w-5 h-5" fill="#0A66C2" viewBox="0 0 24 24">
-                              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                            </svg>
-                          )}
-                        </button>
-                      ))}
+                    {/* Authentication Method Toggle */}
+                    <div className="flex gap-2 p-1 rounded-lg mb-6 border border-gray-300" style={{
+                      background: '#FFFFFF'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => setUseOTP(false)}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                          !useOTP
+                            ? 'bg-[#228B22] text-white shadow-lg'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <Mail className="h-4 w-4 inline mr-2" />
+                        Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseOTP(true)}
+                        className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
+                          useOTP
+                            ? 'bg-[#228B22] text-white shadow-lg'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <Smartphone className="h-4 w-4 inline mr-2" />
+                        OTP
+                      </button>
+                    </div>
+
+                    {/* Google Login - Full Width */}
+                    <div className="mb-6">
+                      <button
+                        onClick={() => handleSocialLogin('Google')}
+                        className="w-full py-3 rounded-full flex items-center justify-center gap-3 transition-all duration-300 border border-gray-300 hover:bg-gray-50 font-medium text-gray-700"
+                        style={{
+                          background: '#FFFFFF'
+                        }}
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                          <path fill="#EA4335" d="M5.26620003,9.76452941 C6.19878754,6.93863203 8.85444915,4.90909091 12,4.90909091 C13.6909091,4.90909091 15.2181818,5.50909091 16.4181818,6.49090909 L19.9090909,3 C17.7818182,1.14545455 15.0545455,0 12,0 C7.27006974,0 3.1977497,2.69829785 1.23999023,6.65002441 L5.26620003,9.76452941 Z"/>
+                          <path fill="#34A853" d="M16.0407269,18.0125889 C14.9509167,18.7163016 13.5660892,19.0909091 12,19.0909091 C8.86648613,19.0909091 6.21911939,17.076871 5.27698177,14.2678769 L1.23746264,17.3349879 C3.19279051,21.2970244 7.26500293,24 12,24 C14.9328362,24 17.7353462,22.9573905 19.834192,20.9995801 L16.0407269,18.0125889 Z"/>
+                          <path fill="#4A90E2" d="M19.834192,20.9995801 C22.0291676,18.9520994 23.4545455,15.903663 23.4545455,12 C23.4545455,11.2909091 23.3454545,10.5272727 23.1818182,9.81818182 L12,9.81818182 L12,14.4545455 L18.4363636,14.4545455 C18.1187732,16.013626 17.2662994,17.2212117 16.0407269,18.0125889 L19.834192,20.9995801 Z"/>
+                          <path fill="#FBBC05" d="M5.27698177,14.2678769 C5.03832634,13.556323 4.90909091,12.7937589 4.90909091,12 C4.90909091,11.2182781 5.03443647,10.4668121 5.26620003,9.76452941 L1.23999023,6.65002441 C0.43658717,8.26043162 0,10.0753848 0,12 C0,13.9195484 0.444780743,15.7## 1.23746264,17.3349879 L5.27698177,14.2678769 Z"/>
+                        </svg>
+                        Sign in with Google
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-4 mb-6">
@@ -610,7 +626,199 @@ export default function LoginPage() {
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={isSignUp ? handleSignup : handleLogin} className="space-y-4">
+                    {useOTP ? (
+                      // OTP Form
+                      <form className="space-y-4">
+                        {isSignUp && (
+                          <>
+                            {/* User Type Selection */}
+                            <div className="flex gap-2 p-1 rounded-full mb-4 border border-gray-300" style={{
+                              background: '#FFFFFF'
+                            }}>
+                              {[{id: 'buyer', label: 'Buyer', icon: Building2}, {id: 'farmer', label: 'Farmer', icon: Leaf}].map((type) => (
+                                <button
+                                  key={type.id}
+                                  type="button"
+                                  onClick={() => setUserType(type.id)}
+                                  className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                                    userType === type.id
+                                      ? 'bg-[#228B22] text-white shadow-lg'
+                                      : 'text-gray-500 hover:text-gray-700'
+                                  }`}
+                                >
+                                  <type.icon className="h-4 w-4" />
+                                  {type.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Name Input for Signup */}
+                            <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <User className="h-5 w-5" />
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="Full Name"
+                                value={signupForm.name}
+                                onChange={(e) => setSignupForm({...signupForm, name: e.target.value})}
+                                required
+                                className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
+                                style={{
+                                  background: '#FFFFFF'
+                                }}
+                              />
+                            </div>
+
+                            {/* Email Input for Signup */}
+                            <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Mail className="h-5 w-5" />
+                              </div>
+                              <input
+                                type="email"
+                                placeholder="Email"
+                                value={signupForm.email}
+                                onChange={(e) => setSignupForm({...signupForm, email: e.target.value})}
+                                required
+                                className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
+                                style={{
+                                  background: '#FFFFFF'
+                                }}
+                              />
+                            </div>
+
+                            {/* Location */}
+                            <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <MapPin className="h-5 w-5" />
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="Location (City/District)"
+                                value={signupForm.location}
+                                onChange={(e) => setSignupForm({...signupForm, location: e.target.value})}
+                                className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
+                                style={{
+                                  background: '#FFFFFF'
+                                }}
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* Phone Input for OTP */}
+                        {otpStep === 0 && (
+                          <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                              <Phone className="h-5 w-5" />
+                            </div>
+                            <input
+                              type="tel"
+                              placeholder="Phone Number"
+                              value={isSignUp ? signupForm.phone : loginForm.phone}
+                              onChange={(e) => isSignUp
+                                ? setSignupForm({...signupForm, phone: e.target.value})
+                                : setLoginForm({...loginForm, phone: e.target.value})
+                              }
+                              required
+                              className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300"
+                              style={{
+                                background: '#FFFFFF'
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {/* OTP Input Display */}
+                        {otpStep === 1 && (
+                          <div className="space-y-4">
+                            <div className="text-center mb-4">
+                              <Smartphone className="h-12 w-12 text-[#228B22] mx-auto mb-2" />
+                              <p className="text-sm text-gray-600">Enter OTP sent to {otpPhone}</p>
+                            </div>
+                            <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Shield className="h-5 w-5" />
+                              </div>
+                              <input
+                                type="text"
+                                placeholder="Enter 6-digit OTP"
+                                value={otpCode}
+                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                maxLength="6"
+                                required
+                                className="w-full pl-12 pr-4 py-3 rounded-full bg-transparent text-gray-700 placeholder-gray-400 outline-none transition-all border border-gray-300 text-center tracking-widest"
+                                style={{
+                                  background: '#FFFFFF'
+                                }}
+                              />
+                            </div>
+                            {otpExpiry && (
+                              <p className="text-xs text-gray-400 text-center">
+                                OTP expires in {Math.max(0, Math.floor((otpExpiry - Date.now()) / 1000))} seconds
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Send OTP Button */}
+                        {otpStep === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendOTP(isSignUp ? signupForm.phone : loginForm.phone, isSignUp ? 'signup' : 'login')}
+                            disabled={isLoading}
+                            className="w-full py-3 rounded-full font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 hover:opacity-90"
+                            style={{
+                              background: '#228B22'
+                            }}
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <>
+                                Send OTP
+                                <ArrowRight className="h-5 w-5" />
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Verify OTP Button */}
+                        {otpStep === 1 && (
+                          <div className="space-y-3">
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyOTP(otpPhone, otpCode, isSignUp ? 'signup' : 'login')}
+                              disabled={isLoading || otpCode.length !== 6}
+                              className="w-full py-3 rounded-full font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"
+                              style={{
+                                background: '#228B22'
+                              }}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                              ) : (
+                                <>
+                                  Verify OTP
+                                  <ArrowRight className="h-5 w-5" />
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleResendOTP}
+                              disabled={isLoading}
+                              className="w-full py-2 rounded-full font-medium text-[#228B22] transition-all duration-300 border border-[#228B22] hover:bg-[#228B22]/5"
+                            >
+                              Resend OTP
+                            </button>
+                          </div>
+                        )}
+                      </form>
+                    ) : (
+                      // Email/Password Form
+                      <form onSubmit={isSignUp ? handleSignup : handleLogin} className="space-y-4">
                       {isSignUp && (
                         <>
                           {/* User Type Selection */}
@@ -786,31 +994,9 @@ export default function LoginPage() {
                         )}
                       </button>
                     </form>
+                    )}
 
-                    {/* Demo Login Buttons */}
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <p className="text-xs text-gray-400 text-center mb-3">Quick Demo Access</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleDemoLogin('buyer')}
-                          className="flex-1 py-2 px-3 text-xs font-medium text-white rounded-lg transition-all hover:opacity-90 bg-[#228B22]"
-                        >
-                          Demo Buyer
-                        </button>
-                        <button
-                          onClick={() => handleDemoLogin('farmer')}
-                          className="flex-1 py-2 px-3 text-xs font-medium text-white rounded-lg transition-all hover:opacity-90 bg-[#228B22]"
-                        >
-                          Demo Farmer
-                        </button>
-                        <button
-                          onClick={() => handleDemoLogin('admin')}
-                          className="flex-1 py-2 px-3 text-xs font-medium text-white rounded-lg transition-all hover:opacity-90 bg-[#228B22]"
-                        >
-                          Demo Admin
-                        </button>
-                      </div>
-                    </div>
+
 
                     {/* Mobile Toggle */}
                     <div className="md:hidden mt-6 text-center">
