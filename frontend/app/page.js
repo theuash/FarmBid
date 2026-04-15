@@ -1148,13 +1148,18 @@ export default function App() {
               <NavItem icon={Wallet} label="Wallet" view="wallet" />
               <NavItem icon={AlertTriangle} label="Disputes" view="disputes" badge="0" />
 
-              <Separator className="my-3" />
+              {/* Demo Modes - Only show for demo users */}
+              {currentUser?.isDemo && (
+                <>
+                  <Separator className="my-3" />
 
-              <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
-                Demo Modes
-              </p>
-              <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
-              <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
+                  <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
+                    Demo Modes
+                  </p>
+                  <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
+                  <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
+                </>
+              )}
 
               <Separator className="my-3" />
 

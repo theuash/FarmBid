@@ -21,6 +21,7 @@ const whatsappRouter = require('./routes/whatsapp');
 const adminRouter = require('./routes/admin');
 const qualityRouter = require('./routes/quality');
 const walletRouter = require('./routes/wallet');
+const paymentsRouter = require('./routes/paymentRoutes');
 const ordersRouter = require('./routes/orders');
 const escrowRouter = require('./routes/escrow');
 const authRouter = require('./routes/auth');
@@ -78,6 +79,7 @@ app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/quality', qualityRouter);
 app.use('/api/wallet', walletRouter);
+app.use('/api/payments', paymentsRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/escrow', escrowRouter);
 app.use('/api/auth', authRouter);
@@ -132,6 +134,11 @@ app.listen(PORT, () => {
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
   process.exit(0);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Log the error but do NOT crash the server
 });
 
 process.on('SIGINT', () => {

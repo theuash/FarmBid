@@ -67,6 +67,10 @@ const buyerSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  profileImage: {
+    type: String,
+    default: ''
+  },
   role: {
     type: String,
     enum: ['buyer', 'farmer', 'admin'],
