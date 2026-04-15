@@ -685,12 +685,12 @@ const seedDatabase = async () => {
         {
           userId: demoBuyerFromDB._id.toString(),
           userType: 'buyer',
-          balance: 250000,
-          availableBalance: 250000
+          balance: 0,
+          availableBalance: 0
         },
         { upsert: true }
       );
-      console.log(`  ✅ Demo Buyer wallet: ₹250,000`);
+      console.log(`  ✅ Demo Buyer wallet: ₹0`);
     }
 
     console.log('\n' + '='.repeat(60));
@@ -722,3 +722,4 @@ mongoose
     console.error('❌ MongoDB connection error:', err.message);
     process.exit(1);
   });
+

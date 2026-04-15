@@ -337,7 +337,7 @@ router.post('/demo-login', async (req, res) => {
           phone: '+91 80 2345 6789',
           type: 'Retailer',
           location: 'Bengaluru',
-          walletBalance: 250000,
+          walletBalance: 0,
           totalBids: 156,
           wonAuctions: 89,
           trustScore: 98,
@@ -952,7 +952,7 @@ router.post('/verify-otp', [
           isDemo: false,
           role: 'buyer',
           joinedDate: new Date().toISOString().split('T')[0],
-          walletBalance: 50000,
+          walletBalance: 0,
           password: password ? await bcrypt.hash(password, await bcrypt.genSalt(10)) : undefined
         });
       } else {
@@ -1019,7 +1019,7 @@ router.post('/verify-otp', [
       phone: user.phone,
       role: userType,
       isDemo: false,
-      walletBalance: userType === 'buyer' ? (user.walletBalance || 50000) : 0,
+      walletBalance: userType === 'buyer' ? (user.walletBalance ?? 0) : 0,
       trustScore: userType === 'farmer' ? (user.trustScore || 50) : 80
     };
 

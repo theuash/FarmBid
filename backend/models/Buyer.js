@@ -37,7 +37,7 @@ const buyerSchema = new mongoose.Schema({
   },
   walletBalance: {
     type: Number,
-    default: 50000
+    default: 0
   },
   totalBids: {
     type: Number,

@@ -75,15 +75,15 @@ router.post('/', async (req, res, next) => {
     const wallet = new Wallet({
       userId: buyer._id.toString(),
       userType: 'buyer',
-      balance: 50000,
-      availableBalance: 50000
+      balance: 0,
+      availableBalance: 0
     });
     await wallet.save();
 
     res.status(201).json({
       success: true,
       buyer,
-      wallet: { balance: 50000, availableBalance: 50000 }
+      wallet: { balance: 0, availableBalance: 0 }
     });
   } catch (error) {
     if (error.code === 11000) {

@@ -947,18 +947,23 @@ export default function App() {
     const fetchData = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const [listingsRes, eventsRes, walletRes] = await Promise.all([
+        const [listingsRes, eventsRes] = await Promise.all([
           fetch(`${API_URL}/listings?status=all`),
-          fetch(`${API_URL}/blockchain/events`),
-          fetch(`${API_URL}/wallet/balance?buyerId=${currentUser?.id || 'b1'}`)
+          fetch(`${API_URL}/blockchain/events`)
         ])
         const listingsData = await listingsRes.json()
         const eventsData = await eventsRes.json()
-        const walletData = await walletRes.json()
         setListings(listingsData.listings || [])
         setBlockchainEvents(eventsData.events || [])
-        if (walletData.success) {
-          setWalletBalance(walletData.balance || 0)
+
+        if (isAuthenticated && currentUser?.id) {
+          const walletRes = await fetch(`${API_URL}/wallet/balance?buyerId=${currentUser.id}`)
+          const walletData = await walletRes.json()
+          if (walletData.success) {
+            setWalletBalance(walletData.balance || 0)
+          }
+        } else {
+          setWalletBalance(0)
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -967,7 +972,7 @@ export default function App() {
       }
     }
     fetchData()
-  }, [currentUser?.id])
+  }, [currentUser?.id, isAuthenticated])
 
   // Polling for realtime listings updates
   useEffect(() => {
