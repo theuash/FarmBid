@@ -11,7 +11,7 @@
         "backend:install": "cd ../backend && npm install",
         "backend:dev": "cd ../backend && npm run dev",
         "backend:start": "cd ../backend && npm start",
-        "backend:seed": "cd ../backend && npm run seed",
+
         "backend:test": "cd ../backend && npm test"
     },
     "dependencies": {

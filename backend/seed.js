@@ -1,8 +1,9 @@
 /**
- * FarmBid Database Seeder
- * Populates the MongoDB database with initial seed data
- * Run with: node backend/seed.js
+ * Seeder disabled — removed per user request.
  */
+console.log('Seed script disabled. No action taken.');
+process.exit(0);
+
 
 require('dotenv').config();
 const mongoose = require('mongoose');

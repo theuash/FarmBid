@@ -427,14 +427,473 @@ const getOrCreateFarmer = async (phone) => {
 };
 
 // ========== MESSAGE HANDLER (unchanged logic, but wrapped in try/catch) ==========
-const handleFarmerMessage = async (msg) => {
-  // ... The entire handler function from your original code.
-  // I'm omitting it here for brevity, but you should paste your existing handler.
-  // IMPORTANT: wrap the whole function body in try/catch and log errors.
+// ========== CONVERSATION STATE MANAGEMENT ==========
+const conversationStates = new Map(); // phone -> { step, data }
+
+// ========== CHATBOT RESPONSE FUNCTIONS ==========
+const sendButtonMessage = async (to, body, buttons) => {
+  if (!clientReady || !client) return;
   try {
-    // (Your existing handler code here)
+    // WhatsApp Web.js button format
+    const buttonMessage = {
+      body: body,
+      buttons: buttons.map(btn => ({
+        id: btn.id,
+        body: btn.title
+      }))
+    };
+    await client.sendMessage(getWhatsAppId(to), buttonMessage);
+  } catch (error) {
+    console.error('[WhatsApp] Button message failed:', error);
+    // Fallback to text message
+    await sendTextMessage(to, `${body}\n\n${buttons.map(btn => `• ${btn.title}`).join('\n')}`);
+  }
+};
+
+const sendListMessage = async (to, body, sections) => {
+  if (!clientReady || !client) return;
+  try {
+    // WhatsApp Web.js list format
+    const listMessage = {
+      body: body,
+      buttonText: 'View Options',
+      sections: sections
+    };
+    await client.sendMessage(getWhatsAppId(to), listMessage);
+  } catch (error) {
+    console.error('[WhatsApp] List message failed:', error);
+    // Fallback to text message
+    await sendTextMessage(to, `${body}\n\nOptions:\n${sections.map(s => s.rows.map(r => `• ${r.title}`).join('\n')).join('\n')}`);
+  }
+};
+
+const sendTextMessage = async (to, body) => {
+  if (!clientReady || !client) return;
+  try {
+    await client.sendMessage(getWhatsAppId(to), body);
+  } catch (error) {
+    console.error('[WhatsApp] Text message failed:', error);
+  }
+};
+
+// ========== CHATBOT LOGIC ==========
+const handleChatbotMessage = async (msg) => {
+  const phone = formatPhone(msg.from);
+  if (!phone) return;
+
+  const userInput = msg.body?.trim() || '';
+  let userState = conversationStates.get(phone);
+
+  // Initialize state for new users
+  if (!userState) {
+    userState = { step: 'welcome', data: {} };
+    conversationStates.set(phone, userState);
+
+    // Send welcome message for new users
+    const welcomeResponse = {
+      type: 'button',
+      body: '🌾 Welcome to FarmBid! Your agricultural marketplace on WhatsApp.\n\nHow can I help you today?',
+      buttons: [
+        { id: 'btn_create_listing', title: 'Create Listing' },
+        { id: 'btn_browse_listings', title: 'Browse Listings' },
+        { id: 'btn_my_listings', title: 'My Listings' }
+      ]
+    };
+
+    if (welcomeResponse.type === 'button') {
+      await sendButtonMessage(phone, welcomeResponse.body, welcomeResponse.buttons);
+    }
+    return;
+  }
+
+  let response;
+
+  // Handle button/list selections
+  if (userInput.startsWith('btn_') || userInput.startsWith('list_')) {
+    response = handleButtonSelection(phone, userInput, userState);
+  } else {
+    // Handle text input based on current step
+    response = handleTextInput(phone, userInput, userState);
+  }
+
+  if (response) {
+    // Send the response based on type
+    if (response.type === 'button') {
+      await sendButtonMessage(phone, response.body, response.buttons);
+    } else if (response.type === 'list') {
+      await sendListMessage(phone, response.body, response.sections);
+    } else if (response.type === 'text') {
+      await sendTextMessage(phone, response.body);
+    }
+  }
+};
+
+const handleButtonSelection = (phone, buttonId, userState) => {
+  const { step, data } = userState;
+
+  switch (step) {
+    case 'welcome':
+      if (buttonId === 'btn_create_listing') {
+        conversationStates.set(phone, { step: 'select_role', data: {} });
+        return {
+          type: 'button',
+          body: 'Are you a farmer or buyer?',
+          buttons: [
+            { id: 'btn_farmer', title: 'Farmer' },
+            { id: 'btn_buyer', title: 'Buyer' }
+          ]
+        };
+      } else if (buttonId === 'btn_browse_listings') {
+        return handleBrowseListings(phone);
+      } else if (buttonId === 'btn_my_listings') {
+        return handleMyListings(phone);
+      }
+      break;
+
+    case 'select_role':
+      if (buttonId === 'btn_farmer') {
+        conversationStates.set(phone, { step: 'farmer_menu', data: { role: 'farmer' } });
+        return {
+          type: 'button',
+          body: 'Welcome farmer! What would you like to do?',
+          buttons: [
+            { id: 'btn_new_listing', title: 'Create Listing' },
+            { id: 'btn_view_listings', title: 'My Listings' },
+            { id: 'btn_account_info', title: 'Account Info' }
+          ]
+        };
+      } else if (buttonId === 'btn_buyer') {
+        conversationStates.set(phone, { step: 'buyer_menu', data: { role: 'buyer' } });
+        return {
+          type: 'button',
+          body: 'Welcome buyer! What would you like to do?',
+          buttons: [
+            { id: 'btn_browse_market', title: 'Browse Market' },
+            { id: 'btn_my_bids', title: 'My Bids' },
+            { id: 'btn_wallet_balance', title: 'Wallet Balance' }
+          ]
+        };
+      }
+      break;
+
+    case 'farmer_menu':
+      if (buttonId === 'btn_new_listing') {
+        conversationStates.set(phone, { step: 'listing_photo', data: { ...data, listing: {} } });
+        return {
+          type: 'text',
+          body: '📸 Please send a clear photo of your produce to start creating a listing.'
+        };
+      } else if (buttonId === 'btn_view_listings') {
+        return handleMyListings(phone);
+      } else if (buttonId === 'btn_account_info') {
+        return handleAccountInfo(phone);
+      }
+      break;
+
+    case 'buyer_menu':
+      if (buttonId === 'btn_browse_market') {
+        return handleBrowseListings(phone);
+      } else if (buttonId === 'btn_my_bids') {
+        return handleMyBids(phone);
+      } else if (buttonId === 'btn_wallet_balance') {
+        return handleWalletBalance(phone);
+      }
+      break;
+
+    // Handle produce selection
+    case 'select_produce':
+      const produceTypes = ['tomatoes', 'potatoes', 'onions', 'carrots', 'brinjal', 'cabbage', 'other'];
+      const selectedProduce = buttonId.replace('btn_', '');
+      if (produceTypes.includes(selectedProduce)) {
+        data.listing.produce = selectedProduce;
+        conversationStates.set(phone, { step: 'enter_weight', data });
+        return {
+          type: 'text',
+          body: `✅ ${selectedProduce.charAt(0).toUpperCase() + selectedProduce.slice(1)} selected!\n\n⚖️ Please enter the total weight in kg (e.g., 500)`
+        };
+      }
+      break;
+
+    // Handle listing actions
+    case 'listing_actions':
+      const listingId = data.currentListingId;
+      if (buttonId === 'btn_view_bids') {
+        return handleViewBids(phone, listingId);
+      } else if (buttonId === 'btn_edit_listing') {
+        return handleEditListing(phone, listingId);
+      } else if (buttonId === 'btn_delete_listing') {
+        return handleDeleteListing(phone, listingId);
+      }
+      break;
+  }
+
+  // Default fallback
+  return {
+    type: 'button',
+    body: 'I\'m sorry, I didn\'t understand that. Let\'s start over.',
+    buttons: [
+      { id: 'btn_create_listing', title: 'Create Listing' },
+      { id: 'btn_browse_listings', title: 'Browse Listings' },
+      { id: 'btn_my_listings', title: 'My Listings' }
+    ]
+  };
+};
+
+const handleTextInput = (phone, text, userState) => {
+  const { step, data } = userState;
+
+  switch (step) {
+    case 'enter_weight':
+      const weight = parseFloat(text);
+      if (isNaN(weight) || weight <= 0) {
+        return {
+          type: 'text',
+          body: '⚠️ Please enter a valid weight in kg (numbers only, e.g., 500)'
+        };
+      }
+      data.listing.weight = weight;
+      conversationStates.set(phone, { step: 'enter_price', data });
+      return {
+        type: 'text',
+        body: `✅ ${weight}kg noted!\n\n💰 What is your minimum price per kg? (e.g., 40)`
+      };
+
+    case 'enter_price':
+      const price = parseFloat(text);
+      if (isNaN(price) || price <= 0) {
+        return {
+          type: 'text',
+          body: '⚠️ Please enter a valid price per kg (numbers only, e.g., 40)'
+        };
+      }
+      data.listing.price = price;
+      conversationStates.set(phone, { step: 'enter_location', data });
+      return {
+        type: 'text',
+        body: `✅ ₹${price}/kg noted!\n\n📍 Please share your location or type your village/town name.`
+      };
+
+    case 'enter_location':
+      data.listing.location = text;
+      conversationStates.set(phone, { step: 'confirm_listing', data });
+      return {
+        type: 'button',
+        body: `📋 Please confirm your listing:\n\n📦 Produce: ${data.listing.produce}\n⚖️ Weight: ${data.listing.weight}kg\n💰 Price: ₹${data.listing.price}/kg\n📍 Location: ${data.listing.location}`,
+        buttons: [
+          { id: 'btn_confirm_listing', title: 'Confirm & Publish' },
+          { id: 'btn_edit_listing', title: 'Edit Details' },
+          { id: 'btn_cancel_listing', title: 'Cancel' }
+        ]
+      };
+
+    default:
+      // Unknown step, reset to welcome
+      conversationStates.set(phone, { step: 'welcome', data: {} });
+      return {
+        type: 'button',
+        body: 'Welcome to FarmBid! How can I help you today?',
+        buttons: [
+          { id: 'btn_create_listing', title: 'Create Listing' },
+          { id: 'btn_browse_listings', title: 'Browse Listings' },
+          { id: 'btn_my_listings', title: 'My Listings' }
+        ]
+      };
+  }
+};
+
+const handleBrowseListings = (phone) => {
+  // Get active listings from database
+  const listings = Array.from(listingStore.values()).filter(l => l.status === 'live').slice(0, 10);
+
+  if (listings.length === 0) {
+    return {
+      type: 'button',
+      body: 'No active listings available right now. Check back later!',
+      buttons: [
+        { id: 'btn_refresh_listings', title: 'Refresh' },
+        { id: 'btn_back_to_menu', title: 'Main Menu' }
+      ]
+    };
+  }
+
+  const sections = [{
+    title: 'Available Produce',
+    rows: listings.map(listing => ({
+      id: `list_listing_${listing.id}`,
+      title: `${listing.produce} - ₹${listing.pricePerKg}/kg`,
+      description: `${listing.weight}kg available in ${listing.location}`
+    }))
+  }];
+
+  return {
+    type: 'list',
+    body: `Found ${listings.length} active listings. Select one to view details:`,
+    button_label: 'View Listings',
+    sections: sections
+  };
+};
+
+const handleMyListings = (phone) => {
+  const userListings = Array.from(listingStore.values()).filter(l => l.farmerPhone === phone);
+
+  if (userListings.length === 0) {
+    return {
+      type: 'button',
+      body: 'You don\'t have any listings yet. Would you like to create one?',
+      buttons: [
+        { id: 'btn_new_listing', title: 'Create Listing' },
+        { id: 'btn_back_to_menu', title: 'Main Menu' }
+      ]
+    };
+  }
+
+  const sections = [{
+    title: 'Your Listings',
+    rows: userListings.map(listing => ({
+      id: `list_my_listing_${listing.id}`,
+      title: `${listing.produce} - ${listing.status}`,
+      description: `${listing.weight}kg at ₹${listing.pricePerKg}/kg`
+    }))
+  }];
+
+  return {
+    type: 'list',
+    body: `You have ${userListings.length} listing(s). Select one to manage:`,
+    button_label: 'Manage Listings',
+    sections: sections
+  };
+};
+
+const handleAccountInfo = (phone) => {
+  const farmer = farmerStore.get(phone);
+  if (!farmer) {
+    return {
+      type: 'text',
+      body: 'Account information not found. Please register first.'
+    };
+  }
+
+  return {
+    type: 'button',
+    body: `📊 Account Info:\n\n👤 Name: ${farmer.name}\n📞 Phone: ${farmer.phone}\n📍 Location: ${farmer.location || 'Not set'}\n⭐ Trust Score: ${farmer.trustScore || 100}/100`,
+    buttons: [
+      { id: 'btn_update_profile', title: 'Update Profile' },
+      { id: 'btn_back_to_menu', title: 'Main Menu' }
+    ]
+  };
+};
+
+const handleMyBids = (phone) => {
+  // This would need to be implemented with bid data
+  return {
+    type: 'button',
+    body: 'My Bids feature coming soon! Check back later.',
+    buttons: [
+      { id: 'btn_back_to_menu', title: 'Main Menu' }
+    ]
+  };
+};
+
+const handleWalletBalance = (phone) => {
+  // This would need wallet integration
+  return {
+    type: 'button',
+    body: 'Wallet balance: ₹0 (Demo mode)\n\nUpgrade to genuine account for real wallet!',
+    buttons: [
+      { id: 'btn_back_to_menu', title: 'Main Menu' }
+    ]
+  };
+};
+
+const handleViewBids = (phone, listingId) => {
+  // Implementation for viewing bids on a listing
+  return {
+    type: 'text',
+    body: 'View bids feature coming soon!'
+  };
+};
+
+const handleEditListing = (phone, listingId) => {
+  return {
+    type: 'text',
+    body: 'Edit listing feature coming soon!'
+  };
+};
+
+const handleDeleteListing = (phone, listingId) => {
+  return {
+    type: 'button',
+    body: 'Are you sure you want to delete this listing?',
+    buttons: [
+      { id: 'btn_confirm_delete', title: 'Yes, Delete' },
+      { id: 'btn_cancel_delete', title: 'Cancel' }
+    ]
+  };
+};
+
+// ========== MAIN MESSAGE HANDLER ==========
+const handleFarmerMessage = async (msg) => {
+  try {
+    // Handle media messages (photos for listings)
+    if (msg.hasMedia) {
+      await handleMediaMessage(msg);
+      return;
+    }
+
+    // Handle text/button messages with chatbot logic
+    await handleChatbotMessage(msg);
+
   } catch (error) {
     console.error('[WhatsApp] Handler crashed:', error);
+    // Send error message
+    const phone = formatPhone(msg.from);
+    if (phone) {
+      await sendTextMessage(phone, 'Sorry, something went wrong. Please try again.');
+    }
+  }
+};
+
+const handleMediaMessage = async (msg) => {
+  const phone = formatPhone(msg.from);
+  if (!phone) return;
+
+  const userState = conversationStates.get(phone);
+  if (!userState || userState.step !== 'listing_photo') {
+    await sendTextMessage(phone, '📸 I\'m not expecting a photo right now. Send "menu" to see options.');
+    return;
+  }
+
+  try {
+    const media = await msg.downloadMedia();
+    if (!media) {
+      await sendTextMessage(phone, '⚠️ Could not download the photo. Please try sending it again.');
+      return;
+    }
+
+    // Save photo and update listing data
+    const filename = `listing_${Date.now()}_${phone}.jpg`;
+    const filepath = path.join(uploadDir, filename);
+    require('fs').writeFileSync(filepath, media.data, 'base64');
+
+    userState.data.listing.photo = filename;
+    conversationStates.set(phone, { step: 'select_produce', data: userState.data });
+
+    // Send produce selection
+    const produceOptions = [
+      { id: 'btn_tomatoes', title: 'Tomatoes' },
+      { id: 'btn_potatoes', title: 'Potatoes' },
+      { id: 'btn_onions', title: 'Onions' },
+      { id: 'btn_carrots', title: 'Carrots' },
+      { id: 'btn_brinjal', title: 'Brinjal' },
+      { id: 'btn_cabbage', title: 'Cabbage' },
+      { id: 'btn_other', title: 'Other' }
+    ];
+
+    await sendButtonMessage(phone, '✅ Photo received! What type of produce is this?', produceOptions);
+
+  } catch (error) {
+    console.error('[WhatsApp] Media handling failed:', error);
+    await sendTextMessage(phone, '⚠️ Failed to process the photo. Please try again.');
   }
 };
 
@@ -458,8 +917,8 @@ const handleFarmerMessage = async (msg) => {
 // ========== EXPORTS ==========
 module.exports = {
   sendWhatsAppMessage: sendMessage,
-  sendInteractiveButtons: async (to, body, buttons) => { /* implement similarly */ },
-  sendListMessage: async (to, body, sections) => { /* implement similarly */ },
+  sendInteractiveButtons: sendButtonMessage,
+  sendListMessage: sendListMessage,
   isReady: () => clientReady,
   getQrCode: () => lastQr,
   getAuthFailure: () => lastAuthFailure,
@@ -484,5 +943,6 @@ module.exports = {
     return sendMessage({ to: phone, body: t('notify_expired', farmer.language, { id }) });
   },
   farmerStore,
-  listingStore
+  listingStore,
+  conversationStates
 };

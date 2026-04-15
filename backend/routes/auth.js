@@ -15,8 +15,6 @@ const oauth2Client = new OAuth2Client(GOOGLE_CLIENT_ID);
 // Debug: Check if env is loaded
 console.log('[auth] JWT_SECRET loaded:', process.env.JWT_SECRET ? 'YES (length: ' + process.env.JWT_SECRET.length + ')' : 'NO');
 console.log('[auth] GOOGLE_CLIENT_ID loaded:', GOOGLE_CLIENT_ID ? 'YES' : 'NO');
-console.log('[auth] DEMO_BUYER_EMAIL:', process.env.DEMO_BUYER_EMAIL);
-console.log('[auth] DEMO_FARMER_EMAIL:', process.env.DEMO_FARMER_EMAIL);
 
 // Import models
 const Buyer = require('../models/Buyer');
@@ -145,7 +143,7 @@ router.post('/login', [
 
 /**
  * @route   POST /api/auth/signup
- * @desc    Register a new buyer or farmer
+ * @desc    Register a new buyer
  * @access  Public
  */
 router.post('/signup', [
@@ -164,24 +162,10 @@ router.post('/signup', [
       });
     }
 
-    const { email, password, name, role, userType, phone, ...extraData } = req.body;
-    // Support both 'role' and 'userType' from frontend
-    const userRole = role || userType;
-
-    if (!userRole || !['buyer', 'farmer'].includes(userRole)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid role. Must be buyer or farmer'
-      });
-    }
+    const { email, password, name, phone, ...extraData } = req.body;
 
     // Check if user already exists
-    let existingUser;
-    if (userRole === 'buyer') {
-      existingUser = await Buyer.findOne({ email: email.toLowerCase() });
-    } else if (userRole === 'farmer') {
-      existingUser = await Farmer.findOne({ email: email.toLowerCase() });
-    }
+    let existingUser = await Buyer.findOne({ email: email.toLowerCase() });
 
     if (existingUser) {
       return res.status(400).json({
@@ -194,60 +178,27 @@ router.post('/signup', [
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user based on role
-    let user;
-    if (userRole === 'buyer') {
-      // Generate unique code for buyer
-      const buyerCount = await Buyer.countDocuments();
-      const code = `B${String(buyerCount + 1).padStart(3, '0')}`;
+    // Generate unique code for buyer
+    const buyerCount = await Buyer.countDocuments();
+    const code = `B${String(buyerCount + 1).padStart(3, '0')}`;
 
-      // Set defaults for required fields not in form
-      const buyerType = extraData.type || 'Individual'; // Default buyer type
+    // Set defaults for required fields not in form
+    const buyerType = extraData.type || 'Individual'; // Default buyer type
 
-      user = new Buyer({
-        ...extraData,
-        code,
-        name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        phone,
-        type: buyerType,
-        location: extraData.location || 'Not specified',
-        isDemo: false,
-        role: 'buyer',
-        joinedDate: new Date().toISOString().split('T')[0],
-        walletBalance: 50000 // Default wallet for new buyers
-      });
-    } else if (userRole === 'farmer') {
-      // Generate unique code for farmer
-      const farmerCount = await Farmer.countDocuments();
-      const districtCode = extraData.district ? extraData.district.substring(0, 2).toUpperCase() : 'XX';
-      const code = `KA-${districtCode}-${String(farmerCount + 1).padStart(3, '0')}`;
-
-      // Set defaults for required fields not in form
-      user = new Farmer({
-        ...extraData,
-        code,
-        name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        phone,
-        village: extraData.village || 'Not specified',
-        district: extraData.district || 'Not specified',
-        pincode: extraData.pincode || '000000',
-        landSize: extraData.landSize || '0 acres',
-        isDemo: false,
-        role: 'farmer',
-        joinedDate: new Date().toISOString().split('T')[0],
-        trustScore: 50, // Default trust score for new farmers
-        crops: extraData.crops || [],
-        aadhaarVerified: false,
-        upiVerified: false,
-        landVerified: false,
-        language: 'Kannada',
-        profileImage: ''
-      });
-    }
+    const user = new Buyer({
+      ...extraData,
+      code,
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      phone,
+      type: buyerType,
+      location: extraData.location || 'Not specified',
+      isDemo: false,
+      role: 'buyer',
+      joinedDate: new Date().toISOString().split('T')[0],
+      walletBalance: 50000 // Default wallet for new buyers
+    });
 
     await user.save();
 
@@ -255,11 +206,11 @@ router.post('/signup', [
     const token = jwt.sign(
       {
         userId: user._id.toString(),
-        userType: userRole,
+        userType: 'buyer',
         email: user.email,
         name: user.name,
         isDemo: false,
-        role: userRole
+        role: 'buyer'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -272,19 +223,11 @@ router.post('/signup', [
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role || userRole,
+      role: 'buyer',
       isDemo: false,
-      walletBalance: userRole === 'buyer' ? 50000 : 0,
-      trustScore: userRole === 'farmer' ? (user.trustScore || 50) : 80
+      walletBalance: 50000,
+      trustScore: 80
     };
-
-    // For farmers, add additional fields
-    if (userRole === 'farmer') {
-      userResponse.village = user.village;
-      userResponse.district = user.district;
-      userResponse.landSize = user.landSize;
-      userResponse.crops = user.crops || [];
-    }
 
     res.status(201).json({
       success: true,
@@ -301,218 +244,6 @@ router.post('/signup', [
   }
 });
 
-/**
- * @route   POST /api/auth/demo-login
- * @desc    Get pre-configured demo user token
- * @access  Public
- */
-router.post('/demo-login', async (req, res) => {
-  try {
-    const { role } = req.body;
-
-    if (!role || !['buyer', 'farmer', 'admin'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid role. Must be buyer, farmer, or admin'
-      });
-    }
-
-    let user, userType;
-
-    if (role === 'buyer') {
-      // Get or create demo buyer
-      const DEMO_BUYER_EMAIL = process.env.DEMO_BUYER_EMAIL || 'demo.buyer@farmbid.com';
-      const DEMO_BUYER_PASSWORD = process.env.DEMO_BUYER_PASSWORD || 'demo123';
-
-      user = await Buyer.findOne({ email: DEMO_BUYER_EMAIL });
-
-      if (!user) {
-        // Create demo buyer with seed data
-        const demoBuyerData = {
-          code: 'B001',
-          name: 'Bengaluru Fresh Foods Pvt Ltd',
-          email: DEMO_BUYER_EMAIL,
-          phone: '+91 80 2345 6789',
-          type: 'Retailer',
-          location: 'Bengaluru',
-          walletBalance: 250000,
-          totalBids: 156,
-          wonAuctions: 89,
-          trustScore: 98,
-          joinedDate: '2024-07-01',
-          gstNumber: 'GSTIN001',
-          panNumber: 'PAN001',
-          isDemo: true,
-          role: 'buyer'
-        };
-
-        // Hash demo password
-        const salt = await bcrypt.genSalt(10);
-        demoBuyerData.password = await bcrypt.hash(DEMO_BUYER_PASSWORD, salt);
-
-        user = new Buyer(demoBuyerData);
-        await user.save();
-      }
-
-      userType = 'buyer';
-
-    } else if (role === 'farmer') {
-      // Get or create demo farmer
-      const DEMO_FARMER_EMAIL = process.env.DEMO_FARMER_EMAIL || 'demo.farmer@farmbid.com';
-      const DEMO_FARMER_PASSWORD = process.env.DEMO_FARMER_PASSWORD || 'demo123';
-
-      user = await Farmer.findOne({ email: DEMO_FARMER_EMAIL });
-
-      if (!user) {
-        // Create demo farmer with seed data (first seed farmer)
-        const demoFarmerData = {
-          code: 'KA-KOL-001',
-          name: 'Ramappa Gowda',
-          email: DEMO_FARMER_EMAIL,
-          phone: '+91 98765 43210',
-          village: 'Srinivaspur',
-          district: 'Kolar',
-          pincode: '563135',
-          landSize: '2.5 acres',
-          trustScore: 95,
-          totalListings: 47,
-          successfulSales: 45,
-          joinedDate: '2024-08-15',
-          aadhaarVerified: true,
-          upiVerified: true,
-          landVerified: true,
-          language: 'Kannada',
-          crops: ['Tomatoes', 'Chilies', 'Onions'],
-          profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-          isDemo: true,
-          role: 'farmer'
-        };
-
-        // Hash demo password
-        const salt = await bcrypt.genSalt(10);
-        demoFarmerData.password = await bcrypt.hash(DEMO_FARMER_PASSWORD, salt);
-
-        user = new Farmer(demoFarmerData);
-        await user.save();
-      }
-
-      userType = 'farmer';
-
-    } else if (role === 'admin') {
-      // Get or create demo admin
-      const DEMO_ADMIN_EMAIL = process.env.DEMO_ADMIN_EMAIL || 'demo.admin@farmbid.com';
-      const DEMO_ADMIN_PASSWORD = process.env.DEMO_ADMIN_PASSWORD || 'demo123';
-
-      // Try to find in Admin, Buyer, or Farmer
-      try {
-        user = await Admin.findOne({ email: DEMO_ADMIN_EMAIL });
-      } catch (e) {
-        // Admin model may not exist, try Farmer as fallback
-        user = await Farmer.findOne({ email: DEMO_ADMIN_EMAIL });
-        if (!user) {
-          user = await Buyer.findOne({ email: DEMO_ADMIN_EMAIL });
-        }
-      }
-
-      if (!user) {
-        // Create demo admin - for simplicity, we'll create as a Buyer with admin role
-        // In production, you'd want a proper Admin model
-        const demoAdminData = {
-          code: 'ADMIN001',
-          name: 'FarmBid Administrator',
-          email: DEMO_ADMIN_EMAIL,
-          phone: '+91 98765 00000',
-          location: 'Bengaluru',
-          walletBalance: 0,
-          trustScore: 100,
-          joinedDate: '2024-01-01',
-          isDemo: true,
-          role: 'admin'
-        };
-
-        // Hash demo password
-        const salt = await bcrypt.genSalt(10);
-        demoAdminData.password = await bcrypt.hash(DEMO_ADMIN_PASSWORD, salt);
-
-        // Try to create as Admin, fallback to Buyer
-        try {
-          user = new Admin(demoAdminData);
-          await user.save();
-          userType = 'admin';
-        } catch (e) {
-          // Admin model doesn't exist, create as Buyer with admin role
-          user = new Buyer({
-            ...demoAdminData,
-            type: 'Individual',
-            email: DEMO_ADMIN_EMAIL
-          });
-          await user.save();
-          userType = 'buyer';
-        }
-      } else {
-        userType = user.role || 'admin';
-      }
-    }
-
-    // Generate JWT token
-    console.log('[demo-login] User object:', { email: user.email, _id: user._id, _idType: typeof user._id, isDemo: user.isDemo, role: user.role });
-    console.log('[demo-login] JWT_SECRET length:', process.env.JWT_SECRET?.length);
-    console.log('[demo-login] JWT_EXPIRES_IN:', process.env.JWT_EXPIRES_IN);
-
-    let token;
-    try {
-      const payload = {
-        userId: user._id.toString(),
-        userType: userType,
-        email: user.email,
-        name: user.name,
-        isDemo: user.isDemo || true,
-        role: user.role || userType
-      };
-      console.log('[demo-login] JWT payload:', payload);
-      token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-      console.log('[demo-login] JWT generated successfully, token preview:', token.substring(0, 50) + '...');
-    } catch (jwtError) {
-      console.error('[demo-login] JWT signing failed:', jwtError);
-      // Fallback shouldn't happen - rethrow
-      throw jwtError;
-    }
-
-    // Return user data
-    const userResponse = {
-      id: user._id,
-      code: user.code,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role || userType,
-      isDemo: user.isDemo || true,
-      walletBalance: user.walletBalance || 0,
-      trustScore: user.trustScore || 100
-    };
-
-    // For farmers, add additional fields
-    if (userType === 'farmer') {
-      userResponse.village = user.village;
-      userResponse.district = user.district;
-      userResponse.landSize = user.landSize;
-      userResponse.crops = user.crops;
-    }
-
-    res.json({
-      success: true,
-      token,
-      user: userResponse
-    });
-
-  } catch (error) {
-    console.error('Demo login error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error'
-    });
-  }
-});
 
 /**
  * @route   POST /api/auth/verify-token
