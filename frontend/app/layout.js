@@ -1,4 +1,5 @@
 import './globals.css'
+import Script from 'next/script'
 import { Toaster } from '@/components/ui/sonner'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 
@@ -17,8 +18,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{__html:'window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);'}} />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+        <Script
+          id="perf-error-handler"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{__html:'window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);'}}
+        />
       </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <GoogleOAuthProvider clientId={clientId}>

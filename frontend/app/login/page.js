@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { 
-  Mail, Lock, User, Building2, Phone, MapPin, Leaf,
+  Mail, Lock, User, Phone, MapPin, Leaf,
   Eye, EyeOff, ArrowRight, Loader2, Shield, Fingerprint,
   ChevronRight, CheckCircle2, Globe, Smartphone
 } from 'lucide-react'
@@ -16,7 +16,8 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [userType] = useState('buyer') // Always buyer
+  const userType = 'buyer'
+  const [useOTP] = useState(true)
   
   // Form states
   const [loginForm, setLoginForm] = useState({ email: '', password: '', phone: '' })
@@ -573,27 +574,6 @@ export default function LoginPage() {
                       <form className="space-y-4">
                         {isSignUp && (
                           <>
-                            {/* User Type Selection */}
-                            <div className="flex gap-2 p-1 rounded-full mb-4 border border-gray-300" style={{
-                              background: '#FFFFFF'
-                            }}>
-                              {[{id: 'buyer', label: 'Buyer', icon: Building2}, {id: 'farmer', label: 'Farmer', icon: Leaf}].map((type) => (
-                                <button
-                                  key={type.id}
-                                  type="button"
-                                  onClick={() => setUserType(type.id)}
-                                  className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                                    userType === type.id
-                                      ? 'bg-[#228B22] text-white shadow-lg'
-                                      : 'text-gray-500 hover:text-gray-700'
-                                  }`}
-                                >
-                                  <type.icon className="h-4 w-4" />
-                                  {type.label}
-                                </button>
-                              ))}
-                            </div>
-
                             {/* Name Input for Signup */}
                             <div className="relative">
                               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
@@ -763,27 +743,6 @@ export default function LoginPage() {
                       <form onSubmit={isSignUp ? handleSignup : handleLogin} className="space-y-4">
                       {isSignUp && (
                         <>
-                          {/* User Type Selection */}
-                          <div className="flex gap-2 p-1 rounded-full mb-4 border border-gray-300" style={{
-                            background: '#FFFFFF'
-                          }}>
-                            {[{id: 'buyer', label: 'Buyer', icon: Building2}, {id: 'farmer', label: 'Farmer', icon: Leaf}].map((type) => (
-                              <button
-                                key={type.id}
-                                type="button"
-                                onClick={() => setUserType(type.id)}
-                                className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                                  userType === type.id
-                                    ? 'bg-[#228B22] text-white shadow-lg'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                              >
-                                <type.icon className="h-4 w-4" />
-                                {type.label}
-                              </button>
-                            ))}
-                          </div>
-
                           {/* Name Input */}
                           <div className="relative">
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
