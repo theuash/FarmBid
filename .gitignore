@@ -38,6 +38,9 @@ dist
 .wwebjs_auth/
 backend/.wwebjs_auth/
 **/ .wwebjs_auth/**
+.wwebjs_cache/
+backend/.wwebjs_cache/
+**/ .wwebjs_cache/**
 # Environment files (comprehensive coverage)
 *token.json*
 *credentials.json*

@@ -12,6 +12,7 @@ const { sendWhatsAppMessage } = require('../utils/whatsapp');
 const { v4: uuidv4 } = require('uuid');
 const { bidValidation, handleValidationErrors } = require('../middleware/validation');
 const { authenticateJWT, authorizeRole } = require('../middleware/auth');
+const { lockFunds, unlockFunds, checkBalance } = require('../utils/walletHelpers');
 
 // POST /api/bids - Place a bid
 router.post('/', authenticateJWT, authorizeRole('buyer'), handleValidationErrors, bidValidation, async (req, res, next) => {
@@ -87,6 +88,34 @@ router.post('/', authenticateJWT, authorizeRole('buyer'), handleValidationErrors
       }
     } catch (err) {
       console.warn('Could not fetch buyer name for bid:', err.message);
+    }
+
+    // 1. Calculate lot value
+    const totalValue = Number(listing.quantity || 0) * Number(bidPerKg);
+
+    // 2. Check balance
+    const hasBalance = await checkBalance(buyerId, totalValue);
+    if (!hasBalance) {
+      return res.status(400).json({
+        success: false,
+        error: `Insufficient balance. Total bid value is ₹${totalValue.toLocaleString()}.`
+      });
+    }
+
+    // 3. Find previous highest bidder to unlock their funds
+    if (listing.highestBidderId) {
+        const prevBids = await Bid.find({ listingId: listing._id }).sort({ bidPerKg: -1 }).limit(1);
+        if (prevBids.length > 0) {
+            const prevBid = prevBids[0];
+            const prevValue = Number(listing.quantity || 0) * Number(prevBid.bidPerKg);
+            await unlockFunds(prevBid.buyerId, prevValue, listingId);
+        }
+    }
+
+    // 4. Lock current bidder's funds
+    const lockResult = await lockFunds(buyerId, totalValue, listingId);
+    if (!lockResult.success) {
+      return res.status(500).json({ success: false, error: lockResult.error });
     }
 
     // Create bid

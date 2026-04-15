@@ -13,7 +13,7 @@ exports.createOrder = async (req, res) => {
     }
 
     const options = {
-      amount: amount * 100, // Razorpay expects amount in paise (INR)
+      amount: Math.round(parseFloat(amount) * 100), // Razorpay strictly expects an integer in paise (INR)
       currency: 'INR',
       receipt: `receipt_order_${Date.now()}`,
     };

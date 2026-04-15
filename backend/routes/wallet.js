@@ -17,8 +17,8 @@ router.get('/balance', async (req, res, next) => {
       wallet = new Wallet({
         userId: buyerId,
         userType: 'buyer',
-        balance: 50000,
-        availableBalance: 50000
+        balance: 0,
+        availableBalance: 0
       });
       await wallet.save();
     }
@@ -49,13 +49,26 @@ router.post('/topup', authenticateJWT, authorizeRole('buyer'), async (req, res, 
       });
     }
 
+    // Check if this referenceId has already been processed
+    if (referenceId) {
+      const existingTx = await WalletTransaction.findOne({ referenceId, status: 'completed' });
+      if (existingTx) {
+        return res.status(400).json({
+          success: false,
+          error: 'This transaction has already been processed'
+        });
+      }
+    }
+
     // Use the authenticated user's ID
     const finalUserId = authUserId;
 
-    if (amount < 100) {
+    const parsedAmount = Number(amount);
+    
+    if (isNaN(parsedAmount) || parsedAmount < 2) {
       return res.status(400).json({
         success: false,
-        error: 'Minimum topup amount is 100'
+        error: 'Minimum topup amount is 2'
       });
     }
 
@@ -72,8 +85,9 @@ router.post('/topup', authenticateJWT, authorizeRole('buyer'), async (req, res, 
     }
 
     const balanceBefore = wallet.balance;
-    wallet.balance += amount;
-    wallet.availableBalance += amount;
+    // Add the topup to the existing balance cumulatively
+    wallet.balance += parsedAmount;
+    wallet.availableBalance += parsedAmount;
 
     await wallet.save();
 
@@ -82,7 +96,7 @@ router.post('/topup', authenticateJWT, authorizeRole('buyer'), async (req, res, 
       walletId: wallet._id,
       userId: finalUserId,
       type: 'topup',
-      amount,
+      amount: parsedAmount,
       balanceBefore,
       balanceAfter: wallet.balance,
       description: `Wallet topup via ${paymentMethod}`,
@@ -99,7 +113,8 @@ router.post('/topup', authenticateJWT, authorizeRole('buyer'), async (req, res, 
       await anchorToBlockchain({
         type: 'wallet_topup',
         userId: finalUserId,
-        amount
+        amount: parsedAmount,
+        referenceId: transaction.referenceId
       }, 'wallet_topup');
     } catch (err) {
       console.warn('Blockchain anchoring failed:', err.message);
@@ -109,6 +124,7 @@ router.post('/topup', authenticateJWT, authorizeRole('buyer'), async (req, res, 
       success: true,
       newBalance: wallet.balance,
       transactionId: transaction._id,
+      referenceId: transaction.referenceId,
       message: 'Wallet topped up successfully'
     });
   } catch (error) {

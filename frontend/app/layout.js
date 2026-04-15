@@ -12,7 +12,6 @@ export const metadata = {
 }
 
 export default function RootLayout({ children }) {
-  // Use explicit ID if available, otherwise a placeholder to prevent crashes before user sets it up
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '1029926669524-ofsccdtlbsjqo5sbvino6il9llq3ecuq.apps.googleusercontent.com'
 
   return (
