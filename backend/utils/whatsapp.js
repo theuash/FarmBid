@@ -136,239 +136,119 @@ const sendMessage = async ({ to, body }) => {
 };
 
 const handleFarmerMessage = async (msg) => {
-  const phone = formatPhone(msg.from);
+  let phone = formatPhone(msg.from);
+  
+  // If self-messaging test (message_create), msg.to is the destination
+  if (msg.fromMe) {
+    phone = formatPhone(msg.to);
+  }
+  
   if (!phone) {
-    console.warn('[WhatsApp] could not parse sender phone from', msg.from);
+    console.warn('[WhatsApp] could not parse sender phone');
     return;
   }
 
   const farmer = getOrCreateFarmer(phone);
   const body = msg.body?.trim() || '';
   const lower = body.toLowerCase();
-  let reply = null;
-
+  
   const sendReply = async (text) => {
     if (text) {
-      await msg.reply(text);
+      // Use client.sendMessage explicitly to ensure delivery to self overrides
+      const toAddress = msg.fromMe ? msg.to : msg.from;
+      await client.sendMessage(toAddress, text);
     }
   };
 
-  const transitionState = (nextState) => {
-    logStateTransition(phone, farmer.state, nextState);
-    farmer.state = nextState;
+  const transitionTo = (state) => {
+    farmer.state = state;
   };
 
-  if (farmer.state === 0) {
-    if (lower === 'yes' || lower === 'y') {
-      transitionState(1);
-      farmer.listingStep = null;
-      reply = 'Please send your 12-digit Aadhaar number.';
-    } else {
-      reply = 'Welcome to FARM BID! Are you a farmer? Reply YES to register.';
-    }
-    await sendReply(reply);
-    return;
-  }
-
-  if (farmer.state === 1) {
-    if (/^\d{12}$/.test(body)) {
-      const result = await verifyAadhaar(body);
-      if (result.success) {
-        farmer.aadhaar = hashAadhaar(body);
-        farmer.name = result.name;
-        transitionState(2);
-        reply = `Aadhaar verified for ${result.name}. Please send the 6-digit OTP.`;
+  // Namma Metro State Machine Engine
+  switch (farmer.state) {
+    case 0:
+      // STATE 0: Asking for Language
+      if (lower === '1' || lower === '2' || lower === '3' || lower.includes('hi') || lower.includes('hello')) {
+        if (lower === '1') farmer.language = 'en';
+        if (lower === '2') farmer.language = 'kn';
+        if (lower === '3') farmer.language = 'hi';
+        
+        transitionTo(1);
+        await sendReply("Great! Let's create a new listing. What type of crop do you want to list?\n\n*Reply with the number:*\n1️⃣ 🍅 Tomatoes\n2️⃣ 🧅 Onions\n3️⃣ 🌾 Wheat");
       } else {
-        reply = 'Invalid Aadhaar. Please try again.';
+        await sendReply("Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें\n\n*Reply with the number:*\n1️⃣ 🌐 English\n2️⃣ 🟢 ಕನ್ನಡ (Kannada)\n3️⃣ 🟠 हिंदी (Hindi)");
       }
-    } else {
-      reply = 'Aadhaar must be 12 digits. Please send your 12-digit Aadhaar number.';
-    }
-    await sendReply(reply);
-    return;
-  }
+      break;
 
-  if (farmer.state === 2) {
-    if (/^\d{6}$/.test(body)) {
-      const result = await verifyOTP(phone, body);
-      if (result.success) {
-        transitionState(3);
-        reply = `Identity verified! Welcome ${farmer.name}. Please send your UPI ID for payment (example: yourname@upi).`;
+    case 1:
+      // STATE 1: Crop Selection
+      if (lower === '1' || lower === '2' || lower === '3' || lower.includes('tomato') || lower.includes('onion')) {
+        if (lower === '1' || lower.includes('tomato')) farmer.tempListing.produce = 'Tomatoes';
+        else if (lower === '2' || lower.includes('onion')) farmer.tempListing.produce = 'Onions';
+        else farmer.tempListing.produce = 'Wheat';
+
+        farmer.tempListing.weight = 500; // default for demo
+        transitionTo(2);
+        await sendReply(`✅ ${farmer.tempListing.produce} selected.\n\nPlease enter your Base Price (minimum expected price) per kg.\n*(Type the amount in ₹)*`);
       } else {
-        reply = 'Wrong OTP. Try again.';
+        await sendReply("Invalid choice. Please select your crop:\n\n*Reply with the number:*\n1️⃣ 🍅 Tomatoes\n2️⃣ 🧅 Onions\n3️⃣ 🌾 Wheat");
       }
-    } else {
-      reply = 'OTP must be 6 digits. Please send the OTP again.';
-    }
-    await sendReply(reply);
-    return;
-  }
+      break;
 
-  if (farmer.state === 3) {
-    if (/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(body)) {
-      const result = await verifyUPI(body);
-      if (result.success) {
-        farmer.upiId = body;
-        farmer.trustScore = 100;
-        farmer.registeredAt = new Date();
-        farmer.totalListings = farmer.totalListings || 0;
-        farmer.violations = farmer.violations || 0;
-        transitionState(4);
-        farmer.listingStep = null;
-        farmer.tempListing = {};
-        reply = `UPI verified! You are now registered, ${farmer.name}.\n${buildRegisteredMenu(farmer.name)}`;
+    case 2:
+      // STATE 2: Base Price Config
+      const parsedPrice = parseFloat(body.replace(/[^0-9.]/g, ''));
+      if (!isNaN(parsedPrice) && parsedPrice > 0) {
+        farmer.tempListing.minPrice = parsedPrice;
+        transitionTo(3);
+        await sendReply(`Summary:\n\n🍅 *Crop:* ${farmer.tempListing.produce}\n💰 *Base Price:* ₹${farmer.tempListing.minPrice}/kg\n\nConfirm listing?\n\n*Reply with:*\n✅ YES\n❌ NO`);
       } else {
-        reply = 'UPI verification failed. Please check and retry.';
+        await sendReply("⚠️ Price must be a valid number. Please type your minimum expected price per kg (e.g. 35).");
       }
-    } else {
-      reply = 'Invalid UPI format. Please send your UPI ID like yourname@upi.';
-    }
-    await sendReply(reply);
-    return;
-  }
+      break;
 
-  if (farmer.state === 4) {
-    if (lower === '1') {
-      transitionState(5);
-      farmer.listingStep = 'awaiting_photo';
-      farmer.tempListing = {};
-      reply = 'Please send a clear photo of your produce.';
-      await sendReply(reply);
-      return;
-    }
-
-    if (lower === '2') {
-      const activeListings = Array.from(listingStore.values()).filter(
-        (listing) => listing.farmerPhone === phone && listing.status === 'active'
-      );
-
-      if (activeListings.length === 0) {
-        reply = 'You have no active listings right now. Reply 1 to create a new listing.';
-      } else {
-        const summary = activeListings
-          .map(
-            (listing) => `ID: ${listing.listingId}\nProduce weight: ${listing.weight}kg\nMin price: ₹${listing.minPrice}/kg\nCloses at: ${new Date(listing.auctionClosesAt).toLocaleString()}`
-          )
-          .join('\n\n');
-        reply = `Your active listings:\n\n${summary}`;
-      }
-      await sendReply(reply);
-      return;
-    }
-
-    if (lower === '3') {
-      reply = `Your trust score is ${farmer.trustScore}/100.`;
-      await sendReply(reply);
-      return;
-    }
-
-    reply = `Sorry, I did not understand that.\n${buildRegisteredMenu(farmer.name)}`;
-    await sendReply(reply);
-    return;
-  }
-
-  if (farmer.state === 5) {
-    const step = farmer.listingStep;
-
-    if (step === 'awaiting_photo') {
-      if (msg.hasMedia) {
+    case 3:
+      // STATE 3: Confirmation and Execution
+      if (lower === 'yes' || lower === 'y' || lower.includes('yes')) {
+        
         try {
-          const photoPath = await saveMedia(msg, phone);
-          farmer.tempListing.photoPath = photoPath;
-          farmer.listingStep = 'awaiting_weight';
-          reply = 'Photo received! Now send the weight in kg (numbers only). Example: 100';
-        } catch (err) {
-          reply = 'Could not save the photo. Please send it again.';
-        }
-      } else {
-        reply = 'Please send a clear photo of your produce.';
-      }
-      await sendReply(reply);
-      return;
-    }
-
-    if (step === 'awaiting_weight') {
-      if (/^\d+(\.\d+)?$/.test(body)) {
-        farmer.tempListing.weight = parseFloat(body);
-        farmer.listingStep = 'awaiting_min_price';
-        reply = 'Weight noted! What is your minimum price per kg in rupees? Example: 40';
-      } else {
-        reply = 'Weight must be a number. Please send the weight in kg. Example: 100';
-      }
-      await sendReply(reply);
-      return;
-    }
-
-    if (step === 'awaiting_min_price') {
-      if (/^\d+(\.\d+)?$/.test(body)) {
-        farmer.tempListing.minPrice = parseFloat(body);
-        farmer.listingStep = 'awaiting_harvest_date';
-        reply = 'Almost done! When will the produce be ready for pickup? Send date as DD-MM-YYYY';
-      } else {
-        reply = 'Price must be a number. Please send your minimum price per kg in rupees.';
-      }
-      await sendReply(reply);
-      return;
-    }
-
-    if (step === 'awaiting_harvest_date') {
-      if (/^\d{2}-\d{2}-\d{4}$/.test(body)) {
-        const [day, month, year] = body.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (
-          date.getFullYear() === year &&
-          date.getMonth() === month - 1 &&
-          date.getDate() === day
-        ) {
-          farmer.tempListing.harvestDate = body;
+          // Push to DB
           const listingPayload = {
             phone,
-            photo: farmer.tempListing.photoPath,
+            images: [],
             weight: farmer.tempListing.weight,
+            produce: farmer.tempListing.produce,
             minPrice: farmer.tempListing.minPrice,
-            harvestDate: farmer.tempListing.harvestDate,
-            trustScore: farmer.trustScore
+            harvestDate: new Date().toISOString(),
+            trustScore: 100
           };
-
+          
           const listingResult = await createListing(listingPayload);
-          const newListing = {
-            listingId: listingResult.listingId,
-            farmerPhone: phone,
-            photoPath: farmer.tempListing.photoPath,
-            weight: farmer.tempListing.weight,
-            minPrice: farmer.tempListing.minPrice,
-            harvestDate: farmer.tempListing.harvestDate,
-            qualityIndex: listingResult.qualityIndex,
-            status: 'active',
-            auctionClosesAt: listingResult.auctionClosesAt,
-            createdAt: new Date().toISOString(),
-            bids: []
-          };
-
-          listingStore.set(newListing.listingId, newListing);
-          farmer.totalListings += 1;
-          farmer.state = 4;
-          farmer.listingStep = null;
-          farmer.tempListing = {};
-
-          reply = `Your listing is LIVE! Listing ID: ${newListing.listingId}. Auction closes at ${new Date(newListing.auctionClosesAt).toLocaleString()}. Buyers can now bid on your produce. We will notify you of bids.`;
-        } else {
-          reply = 'The date you sent is invalid. Please send harvest date as DD-MM-YYYY.';
+          
+          await sendReply(`🚀 *Listing is LIVE!*\n\n🔹 *ID:* #${listingResult.listingId.substring(0,8).toUpperCase()}\n🔹 *Closes in:* 24 hours\n\nYou will receive automated updates when buyers bid!`);
+        } catch (e) {
+          console.error('[WhatsApp] listing creation error:', e);
+          await sendReply("Oops! Something went wrong confirming your listing on the blockchain. Please try again later.");
         }
+        
+        // Reset State
+        transitionTo(0);
+        farmer.tempListing = {};
+
+      } else if (lower === 'no' || lower === 'n') {
+        transitionTo(0);
+        farmer.tempListing = {};
+        await sendReply("❌ Listing cancelled. Say 'Hi' whenever you want to start over!");
       } else {
-        reply = 'Invalid date format. Please send the harvest date as DD-MM-YYYY.';
+        await sendReply("Please confirm:\n✅ YES\n❌ NO");
       }
-      await sendReply(reply);
-      return;
-    }
+      break;
 
-    reply = 'Please follow the listing creation prompts. Send the requested information.';
-    await sendReply(reply);
-    return;
+    default:
+      transitionTo(0);
+      await sendReply("State reset. Say 'Hi' to start.");
+      break;
   }
-
-  reply = 'Sorry, I did not understand that. Please follow the current prompt.';
-  await sendReply(reply);
 };
 
 client.on('qr', (qr) => {
