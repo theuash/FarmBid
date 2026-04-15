@@ -21,7 +21,7 @@ const walletTransactionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['topup', 'bid_escrow', 'release_to_farmer', 'refund', 'fee_charge', 'settlement', 'credit'],
+    enum: ['topup', 'bid_escrow', 'release_to_farmer', 'refund', 'fee_charge', 'settlement', 'credit', 'hold', 'release'],
     required: true
   },
   amount: {
@@ -48,7 +48,7 @@ const walletTransactionSchema = new mongoose.Schema({
   },
   referenceType: {
     type: String,
-    enum: ['bid', 'auction', 'dispute', 'topup', 'withdrawal'],
+    enum: ['bid', 'auction', 'dispute', 'topup', 'withdrawal', 'bid_lock', 'bid_release'],
     required: true
   },
   paymentMethod: {

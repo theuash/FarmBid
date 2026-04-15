@@ -209,7 +209,7 @@ router.post('/signup', [
         isDemo: false,
         role: 'buyer',
         joinedDate: new Date().toISOString().split('T')[0],
-        walletBalance: 50000 // Default wallet for new buyers
+        walletBalance: 0 // Default wallet for new buyers
       });
     } else if (userRole === 'farmer') {
       // Generate unique code for farmer
@@ -267,7 +267,7 @@ router.post('/signup', [
       phone: user.phone,
       role: user.role || userRole,
       isDemo: false,
-      walletBalance: userRole === 'buyer' ? 50000 : 0,
+      walletBalance: 0,
       trustScore: userRole === 'farmer' ? (user.trustScore || 50) : 80
     };
 
@@ -668,7 +668,7 @@ router.post('/google-login', async (req, res) => {
             location: 'Not specified',
             role: 'buyer',
             joinedDate: new Date().toISOString().split('T')[0],
-            walletBalance: 50000, // Seed money
+            walletBalance: 0, // No seed money as requested
             trustScore: 80,
             isDemo: false
          });

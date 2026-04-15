@@ -14,7 +14,7 @@ const walletSchema = new mongoose.Schema({
   balance: {
     type: Number,
     required: true,
-    default: 50000
+    default: 0
   },
   lockedAmount: {
     type: Number,
@@ -23,7 +23,7 @@ const walletSchema = new mongoose.Schema({
   availableBalance: {
     type: Number,
     required: true,
-    default: 50000
+    default: 0
   },
   currency: {
     type: String,
