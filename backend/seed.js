@@ -127,7 +127,7 @@ const seedBuyers = [
     phone: '+91 80 2345 6789',
     type: 'Retailer',
     location: 'Bengaluru',
-    walletBalance: 250000,
+    walletBalance: 0,
     totalBids: 156,
     wonAuctions: 89,
     trustScore: 98,
@@ -144,7 +144,7 @@ const seedBuyers = [
     phone: '+91 80 3456 7890',
     type: 'Restaurant',
     location: 'Bengaluru',
-    walletBalance: 85000,
+    walletBalance: 0,
     totalBids: 78,
     wonAuctions: 45,
     trustScore: 92,
@@ -161,7 +161,7 @@ const seedBuyers = [
     phone: '+91 80 4567 8901',
     type: 'Exporter',
     location: 'Bengaluru',
-    walletBalance: 500000,
+    walletBalance: 0,
     totalBids: 234,
     wonAuctions: 156,
     trustScore: 100,
@@ -469,8 +469,8 @@ const seedDatabase = async () => {
       const wallet = new Wallet({
         userId: buyer._id.toString(),
         userType: 'buyer',
-        balance: buyerData.walletBalance,
-        availableBalance: buyerData.walletBalance
+        balance: 0,
+        availableBalance: 0
       });
       await wallet.save();
 

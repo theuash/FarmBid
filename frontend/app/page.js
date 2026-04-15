@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { QRCodeSVG } from 'qrcode.react'
+
+// Hooks
+import { useIsMobile } from '@/hooks/use-mobile'
 
 // UI Components
 import { Button } from '@/components/ui/button'
@@ -599,7 +603,17 @@ const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
 
 // Payment Dialog
 const PaymentDialog = ({ isOpen, onClose, amount, onConfirm }) => {
+  const isMobile = useIsMobile()
   const [method, setMethod] = useState('phonepe')
+  const [paymentPhase, setPaymentPhase] = useState('select') // 'select', 'scanner', 'processing'
+  const [upiUri, setUpiUri] = useState('')
+
+  // Generate a unique transaction reference for this dialog session
+  const txRef = useMemo(() => {
+    return `FB${Date.now()}${Math.floor(Math.random() * 1000)}`
+  }, [isOpen])
+
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || 'farmbid@upi'
 
   const methods = [
     { 
@@ -622,46 +636,138 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm }) => {
     },
     { 
       id: 'card', 
-      name: 'Credit/Debit Card', 
-      isImage: true, 
-      imgSrc: 'https://img.icons8.com/fluency/96/bank-cards.png' 
+      name: 'CreditCard', 
+      icon: <CreditCard className="h-6 w-6" />,
+      isImage: false
     },
   ]
 
+  const generateUpiUri = (amount, method) => {
+    const base = `upi://pay?pa=${upiId}&pn=FarmBid&am=${amount}&cu=INR&tn=FarmBid_Ref_${txRef}`
+    if (method === 'phonepe') return `phonepe://pay?pa=${upiId}&pn=FarmBid&am=${amount}&cu=INR&tn=FarmBid_Ref_${txRef}`
+    if (method === 'gpay') return `tez://upi/pay?pa=${upiId}&pn=FarmBid&am=${amount}&cu=INR&tn=FarmBid_Ref_${txRef}`
+    return base
+  }
+
+  const handleRazorpay = () => {
+    // Redirect to the custom Razorpay payment page
+    window.open('https://razorpay.me/@sachin2844', '_blank')
+    
+    // For demo purposes, we'll still trigger a "I have paid" flow or processing after they return
+    toast.info('Opening Razorpay Payment Page...')
+    setPaymentPhase('processing')
+    setTimeout(() => {
+        onConfirm('razorpay')
+        onClose()
+    }, 15000) // Delay to simulate payment completion
+  }
+
+  const handlePayClick = () => {
+    if (method === 'razorpay') {
+      handleRazorpay()
+      return
+    }
+
+    if (method === 'card') {
+      onConfirm('card', txRef)
+      onClose()
+      return
+    }
+
+    const uri = generateUpiUri(amount, method)
+    setUpiUri(uri)
+
+    if (isMobile) {
+      // Redirect to app
+      window.location.href = uri
+      // After some delay, assume success for demo purposes
+      setTimeout(() => {
+        setPaymentPhase('processing')
+        setTimeout(() => {
+          onConfirm(method, txRef)
+          onClose()
+        }, 2000)
+      }, 2000)
+    } else {
+      // Show Scanner
+      setPaymentPhase('scanner')
+    }
+  }
+
+  const handleReset = () => {
+    setPaymentPhase('select')
+    setUpiUri('')
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        handleReset()
+        onClose()
+      }
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Complete Payment</DialogTitle>
+          <DialogTitle>{paymentPhase === 'scanner' ? 'Scan to Pay' : 'Complete Payment'}</DialogTitle>
           <DialogDescription>
-            Select a payment method to add {formatINR(amount || 0)} to your wallet.
+            {paymentPhase === 'scanner' 
+              ? `Scan this QR code with any UPI app to pay ${formatINR(amount || 0)}`
+              : `Select a payment method to add ${formatINR(amount || 0)} to your wallet.`
+            }
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            {methods.map((m) => (
-              <div
-                key={m.id}
-                className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all ${
-                  method === m.id ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'hover:bg-muted'
-                }`}
-                onClick={() => setMethod(m.id)}
-              >
-                <div className="h-10 flex items-center justify-center mb-1">
-                  {m.isImage ? (
-                    <img src={m.imgSrc} alt={m.name} className="max-h-8 max-w-[100px] object-contain" />
-                  ) : (
-                    <div className="text-3xl">{m.icon}</div>
-                  )}
+        <div className="py-4">
+          {paymentPhase === 'select' && (
+            <div className="grid grid-cols-2 gap-4">
+              {methods.map((m) => (
+                <div
+                  key={m.id}
+                  className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all ${
+                    method === m.id ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'hover:bg-muted'
+                  }`}
+                  onClick={() => setMethod(m.id)}
+                >
+                  <div className="h-10 flex items-center justify-center mb-1 text-primary">
+                    {m.isImage ? (
+                      <img src={m.imgSrc} alt={m.name} className="max-h-8 max-w-[100px] object-contain" />
+                    ) : (
+                      m.icon
+                    )}
+                  </div>
+                  <div className="font-medium text-sm text-center">{m.name}</div>
                 </div>
-                <div className="font-medium text-sm text-center">{m.name}</div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
-          {method === 'card' && (
-            <div className="space-y-3 mt-2 p-4 border rounded-lg bg-muted/30">
+          {paymentPhase === 'scanner' && (
+            <div className="flex flex-col items-center justify-center space-y-6 py-4">
+              <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
+                <QRCodeSVG value={upiUri} size={200} level="H" />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="font-semibold text-lg">{methods.find(m => m.id === method)?.name} UPI</p>
+                <p className="text-xs text-muted-foreground bg-muted p-2 rounded truncate max-w-[250px]">
+                  {upiId}
+                </p>
+              </div>
+              <Badge variant="outline" className="animate-pulse">
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                Waiting for payment...
+              </Badge>
+            </div>
+          )}
+
+          {paymentPhase === 'processing' && (
+            <div className="flex flex-col items-center justify-center space-y-4 py-8">
+              <RefreshCw className="h-12 w-12 text-primary animate-spin" />
+              <p className="font-medium">Processing your transaction...</p>
+            </div>
+          )}
+
+          {method === 'card' && paymentPhase === 'select' && (
+            <div className="space-y-3 mt-4 p-4 border rounded-lg bg-muted/30">
               <div className="space-y-1">
                 <Label>Card Number</Label>
                 <Input placeholder="0000 0000 0000 0000" />
@@ -678,17 +784,27 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm }) => {
               </div>
             </div>
           )}
-
-          {method !== 'card' && (
-            <div className="space-y-3 mt-2 p-4 border rounded-lg bg-muted/30 text-center">
-              <p className="text-sm text-muted-foreground">You will be redirected to the {methods.find(m => m.id === method)?.name} portal to securely complete this transaction.</p>
-            </div>
-          )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onConfirm(method)}>Pay {formatINR(amount || 0)}</Button>
+        <DialogFooter className="sm:justify-between">
+          {paymentPhase === 'scanner' ? (
+            <>
+              <Button variant="ghost" onClick={handleReset}>Back</Button>
+              <Button onClick={() => {
+                onConfirm(method, txRef)
+                onClose()
+              }}>
+                I have paid
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handlePayClick}>
+                {method === 'razorpay' ? 'Continue to Razorpay' : `Pay ${formatINR(amount || 0)}`}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -745,7 +861,12 @@ export default function App() {
             const user = data.user;
             setCurrentUser(user);
             setIsAuthenticated(true);
-            setWalletBalance(0);
+            // Fetch balance for the user
+            const walletRes = await fetch(`${API_URL}/wallet/balance?buyerId=${user.id}`);
+            const walletData = await walletRes.json();
+            if (walletData.success) {
+              setWalletBalance(walletData.balance);
+            }
           } else {
             // Token invalid or expired
             console.error('Auth verification failed:', data.error);
@@ -785,7 +906,7 @@ export default function App() {
         setListings(listingsData.listings || [])
         setBlockchainEvents(eventsData.events || [])
         if (walletData.success) {
-          setWalletBalance(0)
+          setWalletBalance(walletData.balance || 0)
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -931,7 +1052,7 @@ export default function App() {
     setPaymentDialogOpen(true)
   }
 
-  const handlePaymentConfirm = async (method) => {
+  const handlePaymentConfirm = async (method, referenceId) => {
     setPaymentDialogOpen(false)
     setTopupLoading(true)
     try {
@@ -946,7 +1067,8 @@ export default function App() {
         body: JSON.stringify({
           userId: currentUser.id,
           amount: parseFloat(topupAmount),
-          paymentMethod: method
+          paymentMethod: method,
+          referenceId: referenceId
         })
       })
       const data = await response.json()
