@@ -47,12 +47,6 @@ const buyerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  trustScore: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 80
-  },
   joinedDate: {
     type: String,
     required: true

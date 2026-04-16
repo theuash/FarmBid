@@ -26,7 +26,7 @@ router.get('/', async (req, res, next) => {
     await updateAuctionStatusForListings(Listing);
 
     const listings = await Listing.find(query)
-      .populate('farmerId', 'code name trustScore')
+      .populate('farmerId', 'code name')
       .sort({ auctionEndsAt: 1 })
       .lean();
 
@@ -48,8 +48,7 @@ router.get('/', async (req, res, next) => {
       ...updateAuctionStatus(listing.auctionEndsAt),
       farmerId: listing.farmerId?._id?.toString(),
       farmerCode: listing.farmerCode,
-      farmerName: listing.farmerName,
-      farmerTrustScore: listing.farmerId?.trustScore
+      farmerName: listing.farmerName
     }));
 
     const inMemoryListings = listingStore && typeof listingStore.values === 'function' ? Array.from(listingStore.values()) : []
@@ -121,7 +120,7 @@ router.get('/farmer/:farmerId', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const listing = await Listing.findById(req.params.id)
-      .populate('farmerId', 'code name trustScore village district');
+      .populate('farmerId', 'code name village district');
 
     let listingResult = listing;
     let isInMemory = false;
@@ -238,7 +237,6 @@ router.post('/', handleValidationErrors, listingValidation, async (req, res, nex
       farmerId: farmer._id,
       farmerCode: farmer.code,
       farmerName: requestFarmerName || farmer.name,
-      farmerTrustScore: farmer.trustScore,
       produce,
       quantity,
       minPricePerKg,

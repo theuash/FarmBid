@@ -14,10 +14,6 @@ const listingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  farmerTrustScore: {
-    type: Number,
-    required: true
-  },
   produce: {
     type: String,
     required: true

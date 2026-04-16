@@ -114,8 +114,7 @@ router.post('/login', [
       phone: user.phone,
       role: user.role === 'buyer' ? 'retailer' : (user.role || userType),
       isDemo: user.isDemo || false,
-      walletBalance: user.walletBalance || 0,
-      trustScore: user.trustScore || 80
+      walletBalance: user.walletBalance || 0
     };
 
     // For farmers, add additional fields
@@ -243,7 +242,6 @@ router.post('/signup', [
         isDemo: false,
         role: 'farmer',
         joinedDate: new Date().toISOString().split('T')[0],
-        trustScore: 50, // Default trust score for new farmers
         crops: extraData.crops || [],
         aadhaarVerified: false,
         upiVerified: false,
@@ -279,8 +277,7 @@ router.post('/signup', [
       phone: user.phone,
       role: user.role || userRole,
       isDemo: false,
-      walletBalance: 0,
-      trustScore: userRole === 'farmer' ? (user.trustScore || 50) : 80
+      walletBalance: 0
     };
 
     // For farmers, add additional fields
@@ -343,7 +340,6 @@ router.post('/demo-login', async (req, res) => {
           walletBalance: 0,
           totalBids: 0,
           wonAuctions: 0,
-          trustScore: 98,
           joinedDate: '2024-07-01',
           gstNumber: 'GSTIN001',
           panNumber: 'PAN001',
@@ -379,7 +375,6 @@ router.post('/demo-login', async (req, res) => {
           district: 'Urban',
           pincode: '560001',
           landSize: 'N/A',
-          trustScore: 100,
           totalListings: 0,
           successfulSales: 0,
           joinedDate: new Date().toISOString().split('T')[0],
