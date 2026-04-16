@@ -115,7 +115,17 @@ const listingSchema = new mongoose.Schema({
   },
   agentId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Farmer' // Agents share the Farmer model for simplicity
+    ref: 'Farmer'
+  },
+  initiatedFarmerName: {
+    type: String,
+    default: 'Independent Producer'
+  },
+  initiatedFarmerPhone: {
+    type: String
+  },
+  initiatedFarmerUPI: {
+    type: String
   },
   createdAt: {
     type: Date,

@@ -616,11 +616,13 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId, userPhone, 
         : `http://${window.location.hostname}:3001/api`)
     : 'http://localhost:3001/api'
 
-  const upiId = process.env.NEXT_PUBLIC_UPI_ID || '9019808476-2@axl'
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || '9019808476-2@ybl'
   const txRef = useMemo(() => `FB${Date.now()}${Math.floor(Math.random() * 1000)}`, [isOpen])
 
   const methods = [
     { id: 'razorpay', name: 'Secure Razorpay Checkout', isImage: true, imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' },
+    { id: 'gpay', name: 'Google Pay / UPI QR', isImage: true, imgSrc: 'https://www.gstatic.com/lamda/images/google_pay_logo_828.png' },
+    { id: 'phonepe', name: 'PhonePe UPI', isImage: true, imgSrc: 'https://www.phonepe.com/en/assets/images/logo.svg' },
   ]
 
   // Auto-confirm when user returns from payment app
@@ -746,7 +748,6 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId, userPhone, 
         });
         rzp.open();
       };
-      document.body.appendChild(script);
     } catch (e) {
       toast.error('Error starting payment process.');
       setIsVerifying(false);
@@ -889,7 +890,12 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId, userPhone, 
           {paymentPhase === 'scanner' && (
             <div className="flex flex-col items-center justify-center space-y-4 py-4">
               <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
-                <img src="/sachin-qr.jpg" alt="Scan to Pay via PhonePe" className="w-[220px] rounded object-contain" />
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUri)}`} 
+                  alt="Scan to Pay via UPI" 
+                  className="w-[220px] h-[220px] rounded object-contain" 
+                  onLoad={() => console.log('Dynamic QR Loaded for:', upiUri)}
+                />
               </div>
               <div className="text-center space-y-1">
                 <Badge variant="outline" className="animate-pulse">
@@ -983,7 +989,9 @@ export default function App() {
   const [bidDialogOpen, setBidDialogOpen] = useState(false)
   const [blockchainEvents, setBlockchainEvents] = useState([])
   const [orders, setOrders] = useState([])
+  const [agentAuctions, setAgentAuctions] = useState([])
   const [walletBalance, setWalletBalance] = useState(0)
+  const [collectedFunds, setCollectedFunds] = useState(0)
   const [lockedBids, setLockedBids] = useState(0)
   const [whatsappLanguage, setWhatsappLanguage] = useState('english')
   const [searchQuery, setSearchQuery] = useState('')
@@ -1104,21 +1112,30 @@ export default function App() {
           const auctionsRes = await fetch(`${API_URL}/auctions/completed`)
           const auctionsData = await auctionsRes.json()
           if (auctionsData.success) {
-            // Filter auctions for current buyer
-            const userOrders = auctionsData.auctions.filter(a => a.buyerId === currentUser.id)
+            console.log('[Orders] Fetched all auctions:', auctionsData.auctions.length);
+            const currentUserId = String(currentUser.id || currentUser._id || '');
+            
+            // Buyer view: Won auctions
+            const userOrders = auctionsData.auctions.filter(a => String(a.buyerId) === currentUserId)
             setOrders(userOrders)
+            
+            // Agent view: Collected auctions
+            const matchedAgentAuctions = auctionsData.auctions.filter(a => String(a.farmerId) === currentUserId)
+            setAgentAuctions(matchedAgentAuctions)
           }
 
-          const walletRes = await fetch(`${API_URL}/wallet/balance?buyerId=${currentUser.id}`)
+          const walletRes = await fetch(`${API_URL}/wallet/balance?userId=${currentUser.id}`)
           const walletData = await walletRes.json()
           if (walletData.success) {
             setWalletBalance(walletData.balance || 0)
+            setCollectedFunds(walletData.collectedFunds || 0)
           }
-        } else {
-          setWalletBalance(0)
         }
       } catch (error) {
-        console.error('Error fetching data:', error)
+        console.error('CRITICAL: Data fetching failed. Check if Backend is running on port 3001.', error);
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+           console.warn('Network error: Is the API server up? URL attempted:', `${API_URL}/listings?status=all`);
+        }
       } finally {
         setLoading(false)
       }
@@ -1292,6 +1309,32 @@ export default function App() {
       }
     } catch (error) {
       toast.error('Connection error')
+    }
+  }
+
+  const handleFarmerPayout = async (auctionId) => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('farmbid_token');
+      const response = await fetch(`${API_URL}/auctions/${auctionId}/payout`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('Funds transferred to Farmer!', {
+          description: 'The payout has been deducted from your collections.'
+        });
+        // Refresh data
+        window.location.reload();
+      } else {
+        toast.error(data.error || 'Payout failed');
+      }
+    } catch (error) {
+      toast.error('Connection error during payout');
     }
   }
 
@@ -1482,6 +1525,9 @@ export default function App() {
               <NavItem icon={Home} label="Dashboard" view="dashboard" />
               <NavItem icon={Gavel} label="Live Auctions" view="auctions" badge={listings.length} />
               <NavItem icon={ShoppingCart} label="My Orders" view="orders" />
+              {(currentUser?.role === 'agent' || currentUser?.role === 'farmer') && (
+                 <NavItem icon={Coins} label="Collected Funds" view="collections" badge={collectedFunds > 0 ? formatINR(collectedFunds) : null} />
+              )}
               <NavItem icon={Wallet} label="Wallet" view="wallet" />
               <NavItem icon={AlertTriangle} label="Disputes" view="disputes" badge="0" />
 
@@ -2067,6 +2113,100 @@ export default function App() {
                 </motion.div>
               )}
 
+              {/* Collections View (Agent specific) */}
+              {currentView === 'collections' && (
+                <motion.div
+                  key="collections"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-6"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold">Collected Funds</h1>
+                      <p className="text-muted-foreground">Manage payments for your initiated farmers</p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                      <RefreshCw className="h-4 w-4 mr-2" /> Sync Records
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card className="md:col-span-1 bg-primary text-primary-foreground overflow-hidden relative">
+                      <div className="absolute -right-4 -bottom-4 opacity-10">
+                        <Coins className="h-32 w-32" />
+                      </div>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg font-medium opacity-80">Total Collected</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-4xl font-black mb-1">{formatINR(collectedFunds)}</div>
+                        <p className="text-xs opacity-70">Secured funds from completed auctions</p>
+                        <div className="mt-6 flex gap-2">
+                           <Button variant="secondary" className="w-full text-xs h-8">Batch Payout</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="md:col-span-2">
+                       <CardHeader>
+                         <CardTitle className="text-base flex items-center gap-2">
+                           <History className="h-4 w-4" /> Realized Sales & Payouts
+                         </CardTitle>
+                       </CardHeader>
+                       <CardContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Farmer / Product</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Action</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {agentAuctions.length > 0 ? agentAuctions.map((auction) => (
+                                <TableRow key={auction._id}>
+                                  <TableCell>
+                                    <div className="font-semibold">{auction.initiatedFarmerName || 'Independent Farmer'}</div>
+                                    <div className="text-xs text-muted-foreground">{auction.produce} ({auction.quantity}kg)</div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-bold text-emerald-600">
+                                    {formatINR(auction.totalValue)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={auction.escrowStatus === 'paid_to_farmer' ? 'secondary' : 'outline'} className={auction.escrowStatus === 'paid_to_farmer' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-100 text-amber-700 hover:bg-amber-100'}>
+                                      {auction.escrowStatus === 'paid_to_farmer' ? 'Paid' : 'In Collection'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {auction.escrowStatus === 'paid_to_farmer' ? (
+                                      <Button size="sm" variant="ghost" disabled className="h-7 text-[10px]">
+                                        <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-500" /> Complete
+                                      </Button>
+                                    ) : (
+                                      <Button size="sm" className="h-7 text-[10px] bg-emerald-600 hover:bg-emerald-700" onClick={() => handleFarmerPayout(auction._id)}>
+                                        <Handshake className="h-3 w-3 mr-1" /> Pay Farmer
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              )) : (
+                                <TableRow>
+                                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                    No sales records found for payout.
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                       </CardContent>
+                    </Card>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Orders View */}
               {currentView === 'orders' && (
                 <motion.div
@@ -2076,7 +2216,12 @@ export default function App() {
                   exit={{ opacity: 0 }}
                   className="space-y-6"
                 >
-                  <h1 className="text-2xl font-bold">My Orders</h1>
+                  <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-bold">My Orders</h1>
+                    <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                      <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+                    </Button>
+                  </div>
 
                   <Tabs defaultValue="active">
                     <TabsList>

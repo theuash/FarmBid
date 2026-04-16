@@ -9,16 +9,21 @@ const { authenticateJWT, authorizeRole } = require('../middleware/auth');
 // GET /api/wallet/balance - Get wallet balance for user
 router.get('/balance', async (req, res, next) => {
   try {
-    const { buyerId = 'b1' } = req.query;
+    const { userId, userType = 'buyer' } = req.query;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'userId is required' });
+    }
 
-    // Find or create wallet (backward compatibility)
-    let wallet = await Wallet.findOne({ userId: buyerId, userType: 'buyer' });
+    // Find or create wallet
+    let wallet = await Wallet.findOne({ userId: userId });
     if (!wallet) {
       wallet = new Wallet({
-        userId: buyerId,
-        userType: 'buyer',
+        userId: userId,
+        userType: userType,
         balance: 0,
-        availableBalance: 0
+        availableBalance: 0,
+        lockedAmount: 0,
+        collectedFunds: 0
       });
       await wallet.save();
     }
@@ -27,7 +32,8 @@ router.get('/balance', async (req, res, next) => {
       success: true,
       balance: wallet.balance,
       locked: wallet.lockedAmount,
-      available: wallet.availableBalance
+      available: wallet.availableBalance,
+      collectedFunds: wallet.collectedFunds || 0
     });
   } catch (error) {
     next(error);

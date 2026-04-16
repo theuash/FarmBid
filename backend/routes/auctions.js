@@ -88,43 +88,63 @@ const createAuctionFromListing = async (listing, winningBid, auctionData = {}) =
       finalPricePerKg: winningBid.bidPerKg,
       totalValue: listing.quantity * winningBid.bidPerKg,
       status: 'pending_settlement',
-      deliveryStatus: 'scheduled'
+      deliveryStatus: 'pending',
+      initiatedFarmerName: listing.initiatedFarmerName || 'Independent Producer',
+      initiatedFarmerPhone: listing.initiatedFarmerPhone,
+      initiatedFarmerUPI: listing.initiatedFarmerUPI,
+      escrowStatus: 'collected'
     });
 
     await auction.save();
     
-    // Auto-deduct from buyer's wallet
+    // Auto-deduct from buyer's wallet and ADD to Agent's collectedFunds
     try {
       const Wallet = require('../models/Wallet');
       const WalletTransaction = require('../models/WalletTransaction');
-      const { v4: uuidv4 } = require('uuid');
       
-      const wallet = await Wallet.findOne({ userId: winningBid.buyerId });
-      if (wallet) {
-        const balanceBefore = wallet.balance;
-        // The money was already removed from availableBalance and added to lockedAmount during the bid phase.
-        // Now we finalize the deduction by removing it from the total balance and the locked pool.
-        wallet.balance -= auction.totalValue;
-        wallet.lockedAmount = Math.max(0, wallet.lockedAmount - auction.totalValue);
-        await wallet.save();
+      const buyerWallet = await Wallet.findOne({ userId: winningBid.buyerId });
+      if (buyerWallet) {
+        const balanceBefore = buyerWallet.balance;
+        buyerWallet.balance -= auction.totalValue;
+        buyerWallet.lockedAmount = Math.max(0, buyerWallet.lockedAmount - auction.totalValue);
+        await buyerWallet.save();
         
         await WalletTransaction.create({
-          walletId: wallet._id,
+          walletId: buyerWallet._id,
           userId: winningBid.buyerId,
           type: 'payment',
           amount: auction.totalValue,
           balanceBefore,
-          balanceAfter: wallet.balance,
-          description: `Auction payment realized for ${listing.produce} (Lot: ${auction._id})`,
+          balanceAfter: buyerWallet.balance,
+          description: `Auction payment realized for ${listing.produce}`,
           referenceId: auction._id,
           referenceType: 'auction',
           status: 'success'
         });
-        console.log(`[Wallet] Auto-deducted ₹${auction.totalValue} from buyer ${winningBid.buyerId} for won auction.`);
       }
+
+      // Add to Agent's (Farmer record) collectedFunds
+      const agentWallet = await Wallet.findOne({ userId: String(listing.farmerId) });
+      if (agentWallet) {
+        agentWallet.collectedFunds = (agentWallet.collectedFunds || 0) + auction.totalValue;
+        await agentWallet.save();
+        
+        await WalletTransaction.create({
+          walletId: agentWallet._id,
+          userId: String(listing.farmerId),
+          type: 'credit',
+          amount: auction.totalValue,
+          balanceBefore: 0, // Not useful for collectedFunds
+          balanceAfter: agentWallet.collectedFunds,
+          description: `Funds collected from ${winningBid.buyerName} for ${listing.produce}`,
+          referenceId: auction._id,
+          referenceType: 'auction',
+          status: 'success'
+        });
+      }
+      
     } catch (walletErr) {
-      console.error('Failed to auto-deduct funds from winner wallet:', walletErr);
-      // We continue since the auction record is already saved, but this is a ledger inconsistency.
+      console.error('Failed to process funds transfer:', walletErr);
     }
 
     // Create blockchain event for auction settlement
@@ -141,5 +161,54 @@ const createAuctionFromListing = async (listing, winningBid, auctionData = {}) =
     throw error;
   }
 };
+
+/**
+ * @route   POST /api/auctions/:id/payout
+ * @desc    Pay the initiated farmer from the agent's collected funds
+ * @access  Private (Agent only)
+ */
+router.post('/:id/payout', async (req, res) => {
+  try {
+    const auction = await Auction.findById(req.params.id);
+    if (!auction) return res.status(404).json({ success: false, error: 'Auction not found' });
+    
+    // Check if already paid
+    if (auction.escrowStatus === 'paid_to_farmer') {
+      return res.status(400).json({ success: false, error: 'Farmer already paid for this order' });
+    }
+
+    const Wallet = require('../models/Wallet');
+    const agentWallet = await Wallet.findOne({ userId: String(auction.farmerId) });
+    
+    if (!agentWallet || agentWallet.collectedFunds < auction.totalValue) {
+      return res.status(400).json({ success: false, error: 'Insufficient collected funds in agent wallet' });
+    }
+
+    // Process Payout
+    agentWallet.collectedFunds -= auction.totalValue;
+    await agentWallet.save();
+
+    auction.escrowStatus = 'paid_to_farmer';
+    await auction.save();
+
+    // Notify Farmer (Mock WhatsApp)
+    try {
+      const { sendWhatsAppMessage } = require('../utils/whatsapp');
+      if (auction.initiatedFarmerPhone) {
+        await sendWhatsAppMessage({
+          to: auction.initiatedFarmerPhone,
+          body: `💰 Payment Sent: ₹${auction.totalValue}\nRef: ${auction._id.toString().slice(-6)}\nProduce: ${auction.produce}\nFrom: ${auction.farmerName} (Agent)`
+        });
+      }
+    } catch (e) {
+      console.error('WhatsApp notification failed:', e.message);
+    }
+
+    res.json({ success: true, message: 'Payment to farmer recorded and deducted from collected funds' });
+  } catch (error) {
+    console.error('Payout error:', error);
+    res.status(500).json({ success: false, error: 'Server error during payout' });
+  }
+});
 
 module.exports = { router, createAuctionFromListing };

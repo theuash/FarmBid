@@ -20,6 +20,10 @@ const walletSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  collectedFunds: {
+    type: Number,
+    default: 0
+  },
   availableBalance: {
     type: Number,
     required: true,

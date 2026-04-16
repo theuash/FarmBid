@@ -59,6 +59,14 @@ const auctionSchema = new mongoose.Schema({
   settledAt: {
     type: Date
   },
+  initiatedFarmerName: String,
+  initiatedFarmerPhone: String,
+  initiatedFarmerUPI: String,
+  escrowStatus: {
+    type: String,
+    enum: ['pending', 'collected', 'paid_to_farmer'],
+    default: 'pending'
+  },
   blockchainHash: {
     type: String,
     default: () => '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')
