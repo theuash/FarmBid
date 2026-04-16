@@ -262,7 +262,7 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
               <p className="text-muted-foreground">Total Value</p>
               <p className="font-semibold text-amber-600">{formatINR((listing.currentBidPerKg || listing.minPricePerKg) * listing.quantity)}</p>
             </div>
-            {listing.highestBidderName && (
+            {listing.highestBidderName && listing.status !== 'won' && listing.status !== 'ended' && (
               <div className="col-span-2 mt-1">
                 <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
                   <User className="h-3 w-3" /> Highest Bidder
@@ -293,9 +293,9 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
 
         <CardFooter className="pt-0 flex flex-col gap-2">
           {listing.status === 'won' || listing.status === 'ended' ? (
-            <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20" onClick={() => onRelease && onRelease(listing.id || listing._id)}>
-              <PackageCheck className="h-4 w-4 mr-2" />
-              Confirm Delivery
+            <Button className="w-full bg-muted text-muted-foreground" disabled>
+              <Clock className="h-4 w-4 mr-2" />
+              Auction Ended
             </Button>
           ) : (
             <Button className="w-full" onClick={() => onBid(listing)}>
@@ -982,6 +982,7 @@ export default function App() {
   const [selectedListing, setSelectedListing] = useState(null)
   const [bidDialogOpen, setBidDialogOpen] = useState(false)
   const [blockchainEvents, setBlockchainEvents] = useState([])
+  const [orders, setOrders] = useState([])
   const [walletBalance, setWalletBalance] = useState(0)
   const [lockedBids, setLockedBids] = useState(0)
   const [whatsappLanguage, setWhatsappLanguage] = useState('english')
@@ -1100,6 +1101,14 @@ export default function App() {
         setBlockchainEvents(eventsData.events || [])
 
         if (isAuthenticated && currentUser?.id) {
+          const auctionsRes = await fetch(`${API_URL}/auctions/completed`)
+          const auctionsData = await auctionsRes.json()
+          if (auctionsData.success) {
+            // Filter auctions for current buyer
+            const userOrders = auctionsData.auctions.filter(a => a.buyerId === currentUser.id)
+            setOrders(userOrders)
+          }
+
           const walletRes = await fetch(`${API_URL}/wallet/balance?buyerId=${currentUser.id}`)
           const walletData = await walletRes.json()
           if (walletData.success) {
@@ -2071,21 +2080,68 @@ export default function App() {
 
                   <Tabs defaultValue="active">
                     <TabsList>
-                      <TabsTrigger value="active">Active</TabsTrigger>
-                      <TabsTrigger value="completed">Completed</TabsTrigger>
-                      <TabsTrigger value="disputed">Disputed</TabsTrigger>
+                      <TabsTrigger value="active">Active ({orders.length})</TabsTrigger>
+                      <TabsTrigger value="completed">Completed (0)</TabsTrigger>
+                      <TabsTrigger value="disputed">Disputed (0)</TabsTrigger>
                     </TabsList>
-
+                    
                     <TabsContent value="active" className="mt-4">
-                      <Card>
-                        <CardContent className="flex flex-col items-center justify-center py-12">
-                          <Package className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                          <p className="font-medium">No active orders</p>
-                          <p className="text-sm text-muted-foreground">When you win an auction, your active order will appear here.</p>
-                        </CardContent>
-                      </Card>
+                      {orders.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {orders.map((order) => (
+                            <Card key={order.id || order._id} className="overflow-hidden border-primary/20 bg-background/50">
+                              <CardHeader className="pb-2 bg-primary/5">
+                                <div className="flex justify-between items-start">
+                                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                                    WON AUCTION
+                                  </Badge>
+                                  <span className="text-[10px] text-muted-foreground font-mono">#{String(order.id || order._id).substring(0, 8)}</span>
+                                </div>
+                                <CardTitle className="text-lg mt-2">{order.produce}</CardTitle>
+                                <CardDescription className="flex items-center gap-1">
+                                  <User className="h-3 w-3" /> From {order.farmerName}
+                                </CardDescription>
+                              </CardHeader>
+                              <CardContent className="pt-4 space-y-3">
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div>
+                                    <p className="text-muted-foreground text-xs uppercase font-bold">Quantity</p>
+                                    <p className="font-semibold">{order.quantity} kg</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs uppercase font-bold">Price Paid</p>
+                                    <p className="font-semibold text-emerald-600">{formatINR(order.finalPricePerKg)}/kg</p>
+                                  </div>
+                                  <div className="col-span-2 pt-2 border-t">
+                                    <div className="flex justify-between items-center text-base">
+                                      <span className="font-bold">Total Lot Value</span>
+                                      <span className="font-black text-primary">{formatINR(order.totalValue)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="bg-muted p-2 rounded text-[10px] flex items-center justify-between">
+                                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Delivery to {currentUser.location || 'Your Location'}</span>
+                                  <span className="font-bold text-emerald-500 uppercase tracking-tighter">Paid & Escrowed</span>
+                                </div>
+                              </CardContent>
+                              <CardFooter className="pt-0 bg-muted/20 border-t flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span>Blockchain Settled</span>
+                                <Link2 className="h-3 w-3" />
+                              </CardFooter>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <Card>
+                          <CardContent className="flex flex-col items-center justify-center py-12">
+                            <Package className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                            <p className="font-medium">No active orders</p>
+                            <p className="text-sm text-muted-foreground">When you win an auction, your active order will appear here.</p>
+                          </CardContent>
+                        </Card>
+                      )}
                     </TabsContent>
-
+                    
                     <TabsContent value="completed" className="mt-4">
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12">
@@ -2095,7 +2151,7 @@ export default function App() {
                         </CardContent>
                       </Card>
                     </TabsContent>
-
+                    
                     <TabsContent value="disputed" className="mt-4">
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12">
