@@ -1,10 +1,9 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
-import FarmerAgentDashboard from '@/components/FarmerAgentDashboard'
 
 // Hooks
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -35,52 +34,41 @@ import {
   ArrowUpRight, ArrowDownRight, Send, Mic, Image as ImageIcon,
   Phone, MoreVertical, Check, Copy, Filter, RefreshCw, Truck,
   FileText, CreditCard, Building2, Star, Award, Zap, Globe, Lock,
-  LogOut, User, Fingerprint, Receipt, Handshake, PackageCheck
+  LogOut, User, Fingerprint
 } from 'lucide-react'
 
 // WhatsApp demo messages
 const whatsappMessages = {
   english: [
-    { type: 'bot', text: 'Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें' },
-    { type: 'bot', text: 'Choose Language:', isInteractive: true, options: ['English', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'] },
-    { type: 'user', text: 'English' },
-    { type: 'bot', text: "Great! Let's create a new listing. What type of crop do you want to list?" },
-    { type: 'bot', text: 'Select Crop:', isInteractive: true, options: ['Tomatoes', 'Onions', 'Wheat'] },
-    { type: 'user', text: 'Tomatoes' },
-    { type: 'bot', text: 'Tomatoes selected.\n\nPlease enter your Base Price (minimum expected price) per kg.\n(Type the amount)' },
-    { type: 'user', text: '₹32' },
-    { type: 'bot', text: 'Summary:\n\nCrop: Tomatoes\nBase Price: ₹32/kg\n\nConfirm listing?' },
-    { type: 'bot', text: 'Confirm:', isInteractive: true, options: ['Yes, list it', 'Cancel'] },
-    { type: 'user', text: 'Yes, list it' },
-    { type: 'bot', text: 'Listing is LIVE!\n\nAuction ID: #KOL-2025\nEnds in: 24 hours\n\nYou will receive updates when buyers bid.' }
+    { type: 'bot', text: 'Welcome to FarmBid! I am your assistant. How can I help you today?' },
+    { type: 'bot', text: 'Reply with:\n1∩╕ÅΓâú Create new listing\n2∩╕ÅΓâú Check my listings\n3∩╕ÅΓâú View earnings\n4∩╕ÅΓâú Help' },
+    { type: 'user', text: '1' },
+    { type: 'bot', text: "Great! Let's create a new listing. Please send a photo of your produce." },
+    { type: 'user', text: '[Photo of tomatoes]', isImage: true },
+    { type: 'bot', text: '≡ƒìà I see fresh Tomatoes! Quality looks Premium grade.\n\nWhat is the total weight (in kg)?' },
+    { type: 'user', text: '500 kg' },
+    { type: 'bot', text: 'Got it! 500 kg of Tomatoes.\n\nWhat is your minimum price per kg? (Current market: Γé╣30-40/kg)' },
+    { type: 'user', text: '32' },
+    { type: 'bot', text: 'Perfect! Γé╣32 per kg minimum.\n\nWhen was this harvested? (DD/MM or today)' },
+    { type: 'user', text: 'today' },
+    { type: 'bot', text: 'Γ£à Your listing is being processed...\n\n≡ƒôï Summary:\n≡ƒìà Tomatoes - 500 kg\n≡ƒÆ░ Min Price: Γé╣32/kg\n≡ƒÅ╖∩╕Å Total Value: Γé╣16,000+\n≡ƒôì Srinivaspur, Kolar\n\nΓ¢ô∩╕Å Anchoring to blockchain...' },
+    { type: 'bot', text: '≡ƒÄë Listing is LIVE!\n\nAuction ID: #KOL-2025-0628\nEnds in: 24 hours\n\nYou will receive updates when buyers bid.\n\n≡ƒöù Chain Hash: 0x8f9a...8f9a' }
   ],
   hindi: [
-    { type: 'bot', text: 'Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें' },
-    { type: 'bot', text: 'Choose Language:', isInteractive: true, options: ['English', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'] },
-    { type: 'user', text: 'हिंदी (Hindi)' },
-    { type: 'bot', text: "बढ़िया! आइए एक नई लिस्टिंग बनाएं। आप किस प्रकार की फसल बेचना चाहते हैं?" },
-    { type: 'bot', text: 'फसल चुनें:', isInteractive: true, options: ['टमाटर', 'प्याज', 'गेहूं'] },
-    { type: 'user', text: 'टमाटर' },
-    { type: 'bot', text: 'टमाटर चुना गया।\n\nकृपया अपना आधार मूल्य (न्यूनतम अपेक्षित मूल्य) प्रति किलो दर्ज करें।\n(राशि टाइप करें)' },
-    { type: 'user', text: '₹32' },
-    { type: 'bot', text: 'सारांश:\n\nफसल: टमाटर\nआधार मूल्य: ₹32/kg\n\nक्या आप लिस्टिंग की पुष्टि करते हैं?' },
-    { type: 'bot', text: 'पुष्टि करें:', isInteractive: true, options: ['हाँ, लिस्ट करें', 'रद्द करें'] },
-    { type: 'user', text: 'हाँ, लिस्ट करें' },
-    { type: 'bot', text: 'लिस्टिंग लाइव है!\n\nनीलामी ID: #KOL-2025\n24 घंटे में समाप्त\n\nखरीदारों के बोली लगाने पर आपको अपडेट मिलेंगे।' }
+    { type: 'bot', text: 'FarmBid αñ«αÑçαñé αñåαñ¬αñòαñ╛ αñ╕αÑìαñ╡αñ╛αñùαññ αñ╣αÑê! αñ«αÑêαñé αñåαñ¬αñòαñ╛ αñ╕αñ╣αñ╛αñ»αñò αñ╣αÑéαñéαÑñ αñåαñ£ αñ«αÑêαñé αñåαñ¬αñòαÑÇ αñòαÑêαñ╕αÑç αñ«αñªαñª αñòαñ░ αñ╕αñòαññαñ╛ αñ╣αÑéαñé?' },
+    { type: 'bot', text: 'αñ£αñ╡αñ╛αñ¼ αñªαÑçαñé:\n1∩╕ÅΓâú αñ¿αñê αñ▓αñ┐αñ╕αÑìαñƒαñ┐αñéαñù αñ¼αñ¿αñ╛αñÅαñé\n2∩╕ÅΓâú αñ«αÑçαñ░αÑÇ αñ▓αñ┐αñ╕αÑìαñƒαñ┐αñéαñù αñªαÑçαñûαÑçαñé\n3∩╕ÅΓâú αñòαñ«αñ╛αñê αñªαÑçαñûαÑçαñé\n4∩╕ÅΓâú αñ«αñªαñª' },
+    { type: 'user', text: '1' },
+    { type: 'bot', text: 'αñ¼αñ╣αÑüαññ αñàαñÜαÑìαñ¢αñ╛! αñ¿αñê αñ▓αñ┐αñ╕αÑìαñƒαñ┐αñéαñù αñ¼αñ¿αñ╛αññαÑç αñ╣αÑêαñéαÑñ αñòαÑâαñ¬αñ»αñ╛ αñàαñ¬αñ¿αÑÇ αñëαñ¬αñ£ αñòαÑÇ αñ½αÑïαñƒαÑï αñ¡αÑçαñ£αÑçαñéαÑñ' },
+    { type: 'user', text: '[αñƒαñ«αñ╛αñƒαñ░ αñòαÑÇ αñ½αÑïαñƒαÑï]', isImage: true },
+    { type: 'bot', text: '≡ƒìà αññαñ╛αñ£αÑç αñƒαñ«αñ╛αñƒαñ░ αñªαñ┐αñû αñ░αñ╣αÑç αñ╣αÑêαñé! αñùαÑüαñúαñ╡αññαÑìαññαñ╛ αñ¬αÑìαñ░αÑÇαñ«αñ┐αñ»αñ« αñùαÑìαñ░αÑçαñí αñ╣αÑêαÑñ\n\nαñòαÑüαñ▓ αñ╡αñ£αñ¿ αñòαñ┐αññαñ¿αñ╛ αñ╣αÑê (αñòαñ┐αñ▓αÑï αñ«αÑçαñé)?' }
   ],
   kannada: [
-    { type: 'bot', text: 'Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें' },
-    { type: 'bot', text: 'Choose Language:', isInteractive: true, options: ['English', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'] },
-    { type: 'user', text: 'ಕನ್ನಡ (Kannada)' },
-    { type: 'bot', text: "ಉತ್ತಮ! ಹೊಸ ಪಟ್ಟಿಯನ್ನು ರಚಿಸೋಣ. ನೀವು ಯಾವ ರೀತಿಯ ಬೆಳೆಯನ್ನು ಮಾರಾಟ ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?" },
-    { type: 'bot', text: 'ಬೆಳೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:', isInteractive: true, options: ['ಟೊಮ್ಯಾಟೊ', 'ಈರುಳ್ಳಿ', 'ಗೋಧಿ'] },
-    { type: 'user', text: 'ಟೊಮ್ಯಾಟೊ' },
-    { type: 'bot', text: 'ಟೊಮ್ಯಾಟೊ ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ.\n\nದಯವಿಟ್ಟು ನಿಮ್ಮ ಮೂಲ ಬೆಲೆಯನ್ನು (ಕನಿಷ್ಠ ನಿರೀಕ್ಷಿತ ಬೆಲೆ) ಪ್ರತಿ ಕೆಜಿಗೆ ನಮೂದಿಸಿ.\n(ಮೊತ್ತವನ್ನು ಟೈಪ್ ಮಾಡಿ)' },
-    { type: 'user', text: '₹32' },
-    { type: 'bot', text: 'ಸಾರಾಂಶ:\n\nಬೆಳೆ: ಟೊಮ್ಯಾಟೊ\nಮೂಲ ಬೆಲೆ: ₹32/kg\n\nಪಟ್ಟಿಯನ್ನು ಖಚಿತಪಡಿಸುತ್ತೀರಾ?' },
-    { type: 'bot', text: 'ಖಚಿತಪಡಿಸಿ:', isInteractive: true, options: ['ಹೌದು, ಪಟ್ಟಿ ಮಾಡಿ', 'ರದ್ದುಮಾಡಿ'] },
-    { type: 'user', text: 'ಹೌದು, ಪಟ್ಟಿ ಮಾಡಿ' },
-    { type: 'bot', text: 'ಪಟ್ಟಿ ಸಕ್ರಿಯವಾಗಿದೆ!\n\nಹರಾಜು ID: #KOL-2025\n24 ಗಂಟೆಗಳಲ್ಲಿ ಕೊನೆಗೊಳ್ಳುತ್ತದೆ\n\nಖರೀದಿದಾರರು ಬಿಡ್ ಮಾಡಿದಾಗ ನಿಮಗೆ ಅಪ್ಡೇಟ್ ಸಿಗುತ್ತದೆ.' }
+    { type: 'bot', text: 'FarmBid α▓ùα│å α▓╕α│ìα▓╡α▓╛α▓ùα▓ñ! α▓¿α▓╛α▓¿α│ü α▓¿α▓┐α▓«α│ìα▓« α▓╕α▓╣α▓╛α▓»α▓ò. α▓çα▓éα▓ªα│ü α▓¿α▓╛α▓¿α│ü α▓¿α▓┐α▓«α▓ùα│å α▓╣α│çα▓ùα│å α▓╕α▓╣α▓╛α▓» α▓«α▓╛α▓íα▓¼α▓╣α│üα▓ªα│ü?' },
+    { type: 'bot', text: 'α▓ëα▓ñα│ìα▓ñα▓░α▓┐α▓╕α▓┐:\n1∩╕ÅΓâú α▓╣α│èα▓╕ α▓¬α▓ƒα│ìα▓ƒα▓┐ α▓░α▓Üα▓┐α▓╕α▓┐\n2∩╕ÅΓâú α▓¿α▓¿α│ìα▓¿ α▓¬α▓ƒα│ìα▓ƒα▓┐α▓ùα▓│α▓¿α│ìα▓¿α│ü α▓¿α│ïα▓íα▓┐\n3∩╕ÅΓâú α▓ùα▓│α▓┐α▓òα│å α▓¿α│ïα▓íα▓┐\n4∩╕ÅΓâú α▓╕α▓╣α▓╛α▓»' },
+    { type: 'user', text: '1' },
+    { type: 'bot', text: 'α▓àα▓ªα│ìα▓¡α│üα▓ñ! α▓╣α│èα▓╕ α▓¬α▓ƒα│ìα▓ƒα▓┐ α▓«α▓╛α▓íα│ïα▓ú. α▓ªα▓»α▓╡α▓┐α▓ƒα│ìα▓ƒα│ü α▓¿α▓┐α▓«α│ìα▓« α▓ëα▓ñα│ìα▓¬α▓¿α│ìα▓¿α▓ª α▓½α│ïα▓ƒα│ï α▓òα▓│α▓┐α▓╕α▓┐.' },
+    { type: 'user', text: '[α▓ƒα│èα▓«α│åα▓ƒα│è α▓½α│ïα▓ƒα│ï]', isImage: true },
+    { type: 'bot', text: '≡ƒìà α▓ñα▓╛α▓£α▓╛ α▓ƒα│èα▓«α│åα▓ƒα│è α▓òα▓╛α▓úα▓┐α▓╕α│üα▓ñα│ìα▓ñα▓┐α▓ªα│å! α▓ùα│üα▓úα▓«α▓ƒα│ìα▓ƒ α▓¬α│ìα▓░α│Çα▓«α▓┐α▓»α▓é α▓åα▓ùα▓┐α▓ªα│å.\n\nα▓Æα▓ƒα│ìα▓ƒα│ü α▓ñα│éα▓ò α▓Äα▓╖α│ìα▓ƒα│ü (α▓òα│åα▓£α▓┐α▓»α▓▓α│ìα▓▓α▓┐)?' }
   ]
 }
 
@@ -108,9 +96,8 @@ const formatINR = (amount) => {
 const QualityRing = ({ value, size = 60 }) => {
   const radius = (size - 8) / 2
   const circumference = 2 * Math.PI * radius
-  const val = Number(value) || 0
-  const strokeDashoffset = circumference - (val / 100) * circumference
-  const color = val >= 85 ? '#16a34a' : val >= 70 ? '#ca8a04' : '#dc2626'
+  const strokeDashoffset = circumference - (value / 100) * circumference
+  const color = value >= 85 ? '#16a34a' : value >= 70 ? '#ca8a04' : '#dc2626'
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -195,7 +182,7 @@ const CountdownTimer = ({ endsAt, status }) => {
 }
 
 // Auction Card Component
-const AuctionCard = ({ listing, onBid, onRelease }) => {
+const AuctionCard = ({ listing, onBid }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -210,8 +197,8 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
             className="w-full h-40 object-cover"
           />
           <div className="absolute top-2 left-2 flex gap-1.5">
-            <Badge variant={listing.status === 'won' ? 'outline' : listing.status === 'ending_soon' ? 'destructive' : 'default'} className={`backdrop-blur-sm ${listing.status === 'won' ? 'border-amber-500 text-amber-500 bg-amber-500/10' : ''}`}>
-              {listing.status === 'won' ? '🏆 WON' : listing.status === 'ending_soon' ? '🔥 Ending Soon' : listing.status === 'live' ? '🟢 Live' : listing.status}
+            <Badge variant={listing.status === 'ending_soon' ? 'destructive' : 'default'} className="backdrop-blur-sm">
+              {listing.status === 'ending_soon' ? '≡ƒöÑ Ending Soon' : listing.status === 'live' ? '≡ƒƒó Live' : listing.status}
             </Badge>
           </div>
           <div className="absolute top-2 right-2 space-y-1">
@@ -234,6 +221,7 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
+                <span>{listing.produceIcon || '≡ƒî╛'}</span>
                 {listing.produce || 'Farm Produce'}
               </CardTitle>
               <CardDescription className="flex items-center gap-2 mt-1 text-sm">
@@ -301,18 +289,11 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
           </div>
         </CardContent>
 
-        <CardFooter className="pt-0 flex flex-col gap-2">
-          {listing.status === 'won' || listing.status === 'ended' ? (
-            <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20" onClick={() => onRelease && onRelease(listing.id || listing._id)}>
-              <PackageCheck className="h-4 w-4 mr-2" />
-              Confirm Delivery
-            </Button>
-          ) : (
-            <Button className="w-full" onClick={() => onBid(listing)}>
-              <Gavel className="h-4 w-4 mr-2" />
-              Place Bid
-            </Button>
-          )}
+        <CardFooter className="pt-0">
+          <Button className="w-full" onClick={() => onBid(listing)}>
+            <Gavel className="h-4 w-4 mr-2" />
+            Place Bid
+          </Button>
         </CardFooter>
       </Card>
     </motion.div>
@@ -393,17 +374,6 @@ const WhatsAppChat = ({ language }) => {
                     alt="Produce"
                     className="w-48 h-32 object-cover rounded"
                   />
-                ) : msg.isInteractive ? (
-                  <div className="flex flex-col w-full min-w-[200px]">
-                    <p className="text-sm whitespace-pre-line mb-2">{msg.text}</p>
-                    <div className="flex flex-col border-t border-gray-200 dark:border-zinc-700 pt-1">
-                      {msg.options.map((opt, i) => (
-                        <div key={i} className="text-[#00a884] dark:text-[#00a884] font-medium text-sm text-center py-2.5 border-b border-gray-200 dark:border-zinc-700 last:border-0 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors">
-                          {opt}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 ) : (
                   <p className="text-sm whitespace-pre-line">{msg.text}</p>
                 )}
@@ -493,7 +463,7 @@ const BlockchainEvent = ({ event }) => {
         </div>
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
           <span>Block #{event.blockNumber}</span>
-          <span>â€¢</span>
+          <span>ΓÇó</span>
           <span>{new Date(event.timestamp).toLocaleString()}</span>
         </div>
       </div>
@@ -505,134 +475,170 @@ const BlockchainEvent = ({ event }) => {
   )
 }
 
-// Dynamic KPI Card with Real-Time Growth Engine
-const KPICard = ({ title, value, icon: Icon, trend: defaultTrend, trendUp: defaultTrendUp }) => {
-  const [prevValue, setPrevValue] = useState(value)
-  const [dynamicTrend, setDynamicTrend] = useState(defaultTrend)
-  const [isTrendUp, setIsTrendUp] = useState(defaultTrendUp)
-
-  // Calculate real-time percentage changes whenever the data value updates
-  useEffect(() => {
-    if (value === prevValue) return;
-    
-    // Extract base numbers from formatted strings (e.g. "₹2,500" -> 2500)
-    const strCurrent = String(value).replace(/[^0-9.-]+/g, "");
-    const strPrev = String(prevValue).replace(/[^0-9.-]+/g, "");
-    const numCurrent = parseFloat(strCurrent);
-    const numPrev = parseFloat(strPrev);
-    
-    // Only calculate if we have valid numbers AND strings weren't completely empty
-    if (!isNaN(numCurrent) && !isNaN(numPrev) && strCurrent && strPrev) {
-      if (numPrev === 0 && numCurrent > 0) {
-        setDynamicTrend('+100% just now')
-        setIsTrendUp(true)
-      } else if (numPrev > 0) {
-        const pctChange = ((numCurrent - numPrev) / numPrev) * 100
-        const formattedPct = Math.abs(pctChange).toFixed(1)
-        setIsTrendUp(pctChange >= 0)
-        setDynamicTrend(`${pctChange >= 0 ? '+' : '-'}${formattedPct}% from previous`)
-      }
-    }
-    setPrevValue(value)
-  }, [value, prevValue])
-
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold mt-1">{value}</p>
-            {(dynamicTrend || defaultTrend) && (
-              <p className={`text-xs flex items-center mt-1 ${isTrendUp ? 'text-green-500' : 'text-red-500'} animate-in fade-in slide-in-from-left-2 duration-500`}>
-                {isTrendUp ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-                {dynamicTrend || defaultTrend}
-              </p>
-            )}
-          </div>
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Icon className="h-5 w-5 text-primary" />
-          </div>
+// Admin KPI Card
+const KPICard = ({ title, value, icon: Icon, trend, trendUp }) => (
+  <Card>
+    <CardContent className="pt-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="text-2xl font-bold mt-1">{value}</p>
+          {trend && (
+            <p className={`text-xs flex items-center mt-1 ${trendUp ? 'text-green-500' : 'text-red-500'}`}>
+              {trendUp ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {trend}
+            </p>
+          )}
         </div>
-      </CardContent>
-    </Card>
-  )
-}
+        <div className="p-2 bg-primary/10 rounded-lg">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)
 
 // Bid Dialog
 const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
   const [bidAmount, setBidAmount] = useState('')
+
   if (!listing) return null
+
   const minBid = listing.currentBidPerKg + 1
   const totalValue = bidAmount ? bidAmount * listing.quantity : 0
+
   const handleSubmit = () => {
     if (bidAmount >= minBid) {
       onSubmit(listing.id, parseFloat(bidAmount))
       onClose()
     }
   }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
+            <span>{listing.produceIcon}</span>
             Place Bid - {listing.produce}
           </DialogTitle>
-          <DialogDescription>From {listing.farmerName} ({listing.farmerCode})</DialogDescription>
+          <DialogDescription>
+            From {listing.farmerName} ({listing.farmerCode})
+          </DialogDescription>
         </DialogHeader>
+
         <div className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-            <div><p className="text-sm text-muted-foreground">Quantity</p><p className="font-semibold">{listing.quantity} {listing.unit}</p></div>
-            <div><p className="text-sm text-muted-foreground">Current Bid</p><p className="font-bold text-primary">{formatINR(listing.currentBidPerKg)}/kg</p></div>
-            <div><p className="text-sm text-muted-foreground">Floor Price</p><p className="font-semibold">{formatINR(listing.minPricePerKg)}/kg</p></div>
-            <div><p className="text-sm text-muted-foreground">Quality</p><Badge variant={listing.qualityGrade === 'Premium' ? 'default' : 'secondary'}>{listing.qualityGrade}</Badge></div>
+            <div>
+              <p className="text-sm text-muted-foreground">Quantity</p>
+              <p className="font-semibold">{listing.quantity} {listing.unit}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Current Bid</p>
+              <p className="font-bold text-primary">{formatINR(listing.currentBidPerKg)}/kg</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Floor Price</p>
+              <p className="font-semibold">{formatINR(listing.minPricePerKg)}/kg</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Quality</p>
+              <Badge variant={listing.qualityGrade === 'Premium' ? 'default' : 'secondary'}>
+                {listing.qualityGrade}
+              </Badge>
+            </div>
           </div>
+
           <div className="space-y-2">
             <Label>Your Bid (per kg)</Label>
             <div className="relative">
               <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input type="number" placeholder={`Min ${formatINR(minBid)}`} value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} className="pl-9" min={minBid} />
+              <Input
+                type="number"
+                placeholder={`Min ${formatINR(minBid)}`}
+                value={bidAmount}
+                onChange={(e) => setBidAmount(e.target.value)}
+                className="pl-9"
+                min={minBid}
+              />
             </div>
             <p className="text-xs text-muted-foreground">Minimum bid: {formatINR(minBid)}/kg</p>
           </div>
+
           {bidAmount >= minBid && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-              <div className="flex justify-between items-center"><span className="text-sm">Total Lot Value</span><span className="text-xl font-bold text-primary">{formatINR(totalValue)}</span></div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-4 bg-primary/10 rounded-lg border border-primary/20"
+            >
+              <div className="flex justify-between items-center">
+                <span className="text-sm">Total Lot Value</span>
+                <span className="text-xl font-bold text-primary">{formatINR(totalValue)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                This amount will be locked in escrow if you win
+              </p>
             </motion.div>
           )}
+
+          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+            <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Your wallet funds will be locked upon placing a bid. If you win, the amount moves to escrow.
+            </p>
+          </div>
         </div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleSubmit} disabled={!bidAmount || bidAmount < minBid}><Gavel className="h-4 w-4 mr-2" />Place Bid</Button></DialogFooter>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!bidAmount || bidAmount < minBid}>
+            <Gavel className="h-4 w-4 mr-2" />
+            Place Bid
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
+// Payment Dialog
+const PaymentDialog = ({ isOpen, onClose, amount, onConfirm }) => {
   const isMobile = useIsMobile()
   const [method, setMethod] = useState('phonepe')
   const [paymentPhase, setPaymentPhase] = useState('select') // 'select', 'scanner', 'processing'
   const [upiUri, setUpiUri] = useState('')
-  const [isVerifying, setIsVerifying] = useState(false)
-  
-  const API_URL = typeof window !== 'undefined' 
-    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:3001/api' 
-        : `http://${window.location.hostname}:3001/api`)
-    : 'http://localhost:3001/api'
 
   // Generate a unique transaction reference for this dialog session
   const txRef = useMemo(() => {
     return `FB${Date.now()}${Math.floor(Math.random() * 1000)}`
   }, [isOpen])
 
-  const upiId = process.env.NEXT_PUBLIC_UPI_ID || '9019808476-2@axl'
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || 'farmbid@upi'
 
   const methods = [
     { 
+      id: 'phonepe', 
+      name: 'PhonePe', 
+      isImage: true, 
+      imgSrc: 'https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg' 
+    },
+    { 
+      id: 'gpay', 
+      name: 'Google Pay', 
+      isImage: true, 
+      imgSrc: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.png' 
+    },
+    { 
       id: 'razorpay', 
-      name: 'Razorpay Page', 
+      name: 'Razorpay', 
       isImage: true, 
       imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' 
+    },
+    { 
+      id: 'card', 
+      name: 'CreditCard', 
+      icon: <CreditCard className="h-6 w-6" />,
+      isImage: false
     },
   ]
 
@@ -644,10 +650,16 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
   }
 
   const handleRazorpay = () => {
-    // Redirect to the custom Razorpay payment page as per initial project state
+    // Redirect to the custom Razorpay payment page
     window.open('https://razorpay.me/@sachin2844', '_blank')
-    toast.info('Opening Razorpay Payment Page...', { description: 'Please complete payment and return here.' })
+    
+    // For demo purposes, we'll still trigger a "I have paid" flow or processing after they return
+    toast.info('Opening Razorpay Payment Page...')
     setPaymentPhase('processing')
+    setTimeout(() => {
+        onConfirm('razorpay')
+        onClose()
+    }, 15000) // Delay to simulate payment completion
   }
 
   const handlePayClick = () => {
@@ -656,73 +668,51 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
       return
     }
 
+    if (method === 'card') {
+      onConfirm('card', txRef)
+      onClose()
+      return
+    }
+
     const uri = generateUpiUri(amount, method)
     setUpiUri(uri)
 
     if (isMobile) {
+      // Redirect to app
       window.location.href = uri
-      setPaymentPhase('processing')
+      // After some delay, assume success for demo purposes
+      setTimeout(() => {
+        setPaymentPhase('processing')
+        setTimeout(() => {
+          onConfirm(method, txRef)
+          onClose()
+        }, 2000)
+      }, 2000)
     } else {
+      // Show Scanner
       setPaymentPhase('scanner')
-    }
-  }
-
-  const handleManualConfirm = async () => {
-    if (isVerifying) return
-    setIsVerifying(true)
-    try {
-      const token = localStorage.getItem('farmbid_token') || localStorage.getItem('token')
-      const response = await fetch(`${API_URL}/wallet/topup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          amount,
-          paymentMethod: method,
-          referenceId: txRef
-        })
-      })
-      const data = await response.json()
-      if (data.success) {
-        toast.success('Funds added successfully!')
-        onConfirm(data.newBalance)
-        onClose()
-      } else {
-        toast.error(data.error || 'Failed to update balance')
-      }
-    } catch (e) {
-      toast.error('Connection error. Please try again.')
-    } finally {
-      setIsVerifying(false)
     }
   }
 
   const handleReset = () => {
     setPaymentPhase('select')
     setUpiUri('')
-    setIsVerifying(false)
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open && !isVerifying) {
+      if (!open) {
         handleReset()
         onClose()
       }
     }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {paymentPhase === 'scanner' ? 'Scan to Pay' : paymentPhase === 'processing' ? 'Processing Payment' : 'Add Funds to Wallet'}
-          </DialogTitle>
+          <DialogTitle>{paymentPhase === 'scanner' ? 'Scan to Pay' : 'Complete Payment'}</DialogTitle>
           <DialogDescription>
             {paymentPhase === 'scanner' 
               ? `Scan this QR code with any UPI app to pay ${formatINR(amount || 0)}`
-              : paymentPhase === 'processing'
-                ? 'Complete the payment in the app/page and click "I Have Paid".'
-                : `Select a payment method to add ${formatINR(amount || 0)} to your wallet.`
+              : `Select a payment method to add ${formatINR(amount || 0)} to your wallet.`
             }
           </DialogDescription>
         </DialogHeader>
@@ -733,19 +723,19 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
               {methods.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex flex-col items-center justify-center p-4 border rounded-xl cursor-pointer transition-all ${
+                  className={`flex flex-col items-center justify-center p-4 border rounded-lg cursor-pointer transition-all ${
                     method === m.id ? 'border-primary bg-primary/10 ring-2 ring-primary/20' : 'hover:bg-muted'
                   }`}
                   onClick={() => setMethod(m.id)}
                 >
-                  <div className="h-10 flex items-center justify-center mb-2 text-primary">
+                  <div className="h-10 flex items-center justify-center mb-1 text-primary">
                     {m.isImage ? (
-                      <img src={m.imgSrc} alt={m.name} className="max-h-8 max-w-[100px] object-contain opacity-80" />
+                      <img src={m.imgSrc} alt={m.name} className="max-h-8 max-w-[100px] object-contain" />
                     ) : (
                       m.icon
                     )}
                   </div>
-                  <div className="font-semibold text-sm text-center">{m.name}</div>
+                  <div className="font-medium text-sm text-center">{m.name}</div>
                 </div>
               ))}
             </div>
@@ -757,48 +747,61 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
                 <QRCodeSVG value={upiUri} size={200} level="H" />
               </div>
               <div className="text-center space-y-2">
-                <p className="font-semibold text-lg">{methods.find(m => m.id === method)?.name} Gateway</p>
-                <div className="flex items-center gap-2 justify-center">
-                  <Badge variant="outline" className="animate-pulse">
-                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                    Waiting for payment...
-                  </Badge>
-                </div>
+                <p className="font-semibold text-lg">{methods.find(m => m.id === method)?.name} UPI</p>
+                <p className="text-xs text-muted-foreground bg-muted p-2 rounded truncate max-w-[250px]">
+                  {upiId}
+                </p>
               </div>
+              <Badge variant="outline" className="animate-pulse">
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                Waiting for payment...
+              </Badge>
             </div>
           )}
 
           {paymentPhase === 'processing' && (
-            <div className="flex flex-col items-center justify-center space-y-6 py-8">
-              <div className="relative">
-                <RefreshCw className="h-14 w-14 text-primary animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-primary/50" />
-                </div>
+            <div className="flex flex-col items-center justify-center space-y-4 py-8">
+              <RefreshCw className="h-12 w-12 text-primary animate-spin" />
+              <p className="font-medium">Processing your transaction...</p>
+            </div>
+          )}
+
+          {method === 'card' && paymentPhase === 'select' && (
+            <div className="space-y-3 mt-4 p-4 border rounded-lg bg-muted/30">
+              <div className="space-y-1">
+                <Label>Card Number</Label>
+                <Input placeholder="0000 0000 0000 0000" />
               </div>
-              <div className="text-center">
-                <p className="font-semibold">Paying via {methods.find(m => m.id === method)?.name}</p>
-                <p className="text-sm text-muted-foreground mt-1">Please confirm the transaction in your app.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Expiry</Label>
+                  <Input placeholder="MM/YY" />
+                </div>
+                <div className="space-y-1">
+                  <Label>CVV</Label>
+                  <Input placeholder="123" />
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <DialogFooter className="sm:justify-between gap-3">
-          {paymentPhase === 'select' ? (
+        <DialogFooter className="sm:justify-between">
+          {paymentPhase === 'scanner' ? (
             <>
-              <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-              <Button onClick={handlePayClick} className="flex-1 gap-2 shadow-lg shadow-primary/20">
-                Continue
-                <ChevronRight className="h-4 w-4" />
+              <Button variant="ghost" onClick={handleReset}>Back</Button>
+              <Button onClick={() => {
+                onConfirm(method, txRef)
+                onClose()
+              }}>
+                I have paid
               </Button>
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={handleReset} disabled={isVerifying}>Back</Button>
-              <Button onClick={handleManualConfirm} disabled={isVerifying} className="flex-1 gap-2">
-                {isVerifying ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                I Have Paid
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button onClick={handlePayClick}>
+                {method === 'razorpay' ? 'Continue to Razorpay' : `Pay ${formatINR(amount || 0)}`}
               </Button>
             </>
           )}
@@ -807,8 +810,6 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
     </Dialog>
   )
 }
-
-
 
 // Main App Component
 export default function App() {
@@ -828,13 +829,6 @@ export default function App() {
   const [topupAmount, setTopupAmount] = useState('')
   const [topupLoading, setTopupLoading] = useState(false)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
-  
-  // Real Dashboard Stats
-  const [dashboardStats, setDashboardStats] = useState({
-    activeBids: 0,
-    wonAuctions: 0,
-    totalSaved: 0
-  });
   
   // Authentication state
   const [currentUser, setCurrentUser] = useState(null)
@@ -874,6 +868,7 @@ export default function App() {
               setWalletBalance(walletData.balance);
             }
           } else {
+            // Token invalid or expired
             console.error('Auth verification failed:', data.error);
             handleLogout();
           }
@@ -884,34 +879,6 @@ export default function App() {
       }
     };
     checkAuth();
-  }, [])
-
-  // Handle Razorpay redirect-back: auto-credit wallet after payment
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('payment') === 'success') {
-      const refId = params.get('ref')
-      const paidAmount = parseFloat(params.get('amount'))
-      const paidUserId = params.get('userId')
-      window.history.replaceState({}, '', '/')
-      const processReturn = async () => {
-        try {
-          const token = localStorage.getItem('farmbid_token') || localStorage.getItem('token')
-          const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-          const res = await fetch(`${API_URL}/wallet/topup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ userId: paidUserId, amount: paidAmount, paymentMethod: 'razorpay', referenceId: refId })
-          })
-          const data = await res.json()
-          if (data.success) {
-            setWalletBalance(data.newBalance)
-            toast.success(`🎉 ₹${paidAmount} added to your wallet!`, { duration: 6000 })
-          }
-        } catch (e) { console.error('Razorpay return handler:', e) }
-      }
-      processReturn()
-    }
   }, [])
 
   // Handle logout
@@ -928,23 +895,18 @@ export default function App() {
     const fetchData = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const [listingsRes, eventsRes] = await Promise.all([
+        const [listingsRes, eventsRes, walletRes] = await Promise.all([
           fetch(`${API_URL}/listings?status=all`),
-          fetch(`${API_URL}/blockchain/events`)
+          fetch(`${API_URL}/blockchain/events`),
+          fetch(`${API_URL}/wallet/balance?buyerId=${currentUser?.id || 'b1'}`)
         ])
         const listingsData = await listingsRes.json()
         const eventsData = await eventsRes.json()
+        const walletData = await walletRes.json()
         setListings(listingsData.listings || [])
         setBlockchainEvents(eventsData.events || [])
-
-        if (isAuthenticated && currentUser?.id) {
-          const walletRes = await fetch(`${API_URL}/wallet/balance?buyerId=${currentUser.id}`)
-          const walletData = await walletRes.json()
-          if (walletData.success) {
-            setWalletBalance(walletData.balance || 0)
-          }
-        } else {
-          setWalletBalance(0)
+        if (walletData.success) {
+          setWalletBalance(walletData.balance || 0)
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -953,7 +915,7 @@ export default function App() {
       }
     }
     fetchData()
-  }, [currentUser?.id, isAuthenticated])
+  }, [currentUser?.id])
 
   // Polling for realtime listings updates
   useEffect(() => {
@@ -977,7 +939,7 @@ export default function App() {
                 const newPrice = Number(newListing.currentBidPerKg);
                 
                 if (oldPrice !== newPrice) {
-                  console.log(`[Realtime] Bid update detected for ${newListing.produce}: ₹${oldPrice} -> ₹${newPrice}`);
+                  console.log(`[Realtime] Bid update detected for ${newListing.produce}: Γé╣${oldPrice} -> Γé╣${newPrice}`);
                   
                   // Mark as updating for visual feedback
                   setUpdatingListingIds(prev => new Set(prev).add(newListing.id));
@@ -1052,7 +1014,7 @@ export default function App() {
         toast.success('Bid placed successfully!', {
           description: `Your bid of ${formatINR(bidAmount)}/kg has been anchored to blockchain.`
         })
-        console.log(`[BidSubmit] Success! Updating listing ${listingId} locally to ₹${bidAmount}`);
+        console.log(`[BidSubmit] Success! Updating listing ${listingId} locally to Γé╣${bidAmount}`);
         // Update listings
         setListings(prev => {
           const matched = prev.find(l => String(l.id) === String(listingId));
@@ -1078,27 +1040,52 @@ export default function App() {
   const handleTopupClick = () => {
     if (!isAuthenticated || !currentUser) {
       toast.error('Please login to top up wallet');
+      // If we use Next router, it would be router.push. Fallback to location:
       window.location.href = '/login';
       return;
     }
 
-    if (!topupAmount || isNaN(topupAmount) || parseFloat(topupAmount) < 2) {
-      toast.error('Minimum deposit amount is ₹2')
+    if (!topupAmount || isNaN(topupAmount) || parseFloat(topupAmount) <= 0) {
+      toast.error('Please enter a valid amount')
       return
     }
-    
-    // Open the secure Razorpay Payment Dialog
     setPaymentDialogOpen(true)
   }
 
-  const handlePaymentConfirm = (newBalance) => {
-    // The PaymentDialog already handled the backend call & shows its own success screen.
-    // We simply sync the verified balance from the server into our UI state.
-    const numericBalance = Number(newBalance);
-    if (!isNaN(numericBalance)) {
-      setWalletBalance(numericBalance);
+  const handlePaymentConfirm = async (method, referenceId) => {
+    setPaymentDialogOpen(false)
+    setTopupLoading(true)
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('farmbid_token');
+      const response = await fetch(`${API_URL}/wallet/topup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: currentUser.id,
+          amount: parseFloat(topupAmount),
+          paymentMethod: method,
+          referenceId: referenceId
+        })
+      })
+      const data = await response.json()
+      if (data.success) {
+        setWalletBalance(prev => prev + parseFloat(topupAmount))
+        setTopupAmount('')
+        toast.success('Wallet topped up successfully!', {
+          description: `Γé╣${topupAmount} has been added via ${method}.`
+        })
+      } else {
+        toast.error(data.error || 'Topup failed')
+      }
+    } catch (error) {
+      toast.error('Connection error')
+    } finally {
+      setTopupLoading(false)
     }
-    setTopupAmount('');
   }
 
   const handleEscrowLock = async (orderId, farmerAddress, amount) => {
@@ -1202,36 +1189,6 @@ export default function App() {
     </button>
   )
 
-  // If farmer or agent, show their dedicated dashboard
-  if (isAuthenticated && currentUser && (currentUser.role === 'farmer' || currentUser.role === 'agent')) {
-    return (
-      <TooltipProvider>
-        <div className={`min-h-screen bg-background ${darkMode ? 'dark' : ''}`}>
-          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-16 items-center px-6 justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-primary p-1.5 rounded-lg">
-                  <Leaf className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="font-bold text-xl">FarmBid</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="hidden md:block text-right">
-                  <p className="text-sm font-bold">{currentUser.name}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">{currentUser.role === 'agent' ? 'Field Agent' : 'Farmer'}</p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:bg-muted rounded-full">
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </header>
-          <FarmerAgentDashboard user={currentUser} />
-        </div>
-      </TooltipProvider>
-    )
-  }
-
   return (
     <TooltipProvider>
       <div className={`min-h-screen bg-background ${darkMode ? 'dark' : ''}`}>
@@ -1316,7 +1273,7 @@ export default function App() {
               <Separator className="my-3" />
 
               <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
-                Platform Features
+                Demo Modes
               </p>
               <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
               <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
@@ -1327,7 +1284,7 @@ export default function App() {
                 Admin
               </p>
               <NavItem icon={BarChart3} label="Admin Dashboard" view="admin" />
-              <NavItem icon={Users} label="Agents" view="farmers" />
+              <NavItem icon={Users} label="Farmers" view="farmers" />
               <NavItem icon={AlertTriangle} label="Fraud Monitor" view="fraud" />
             </nav>
           </aside>
@@ -1353,7 +1310,7 @@ export default function App() {
                             Welcome{currentUser ? `, ${currentUser.name?.split(' ')[0]}` : ''}!
                           </h1>
                           <p className="text-muted-foreground max-w-lg">
-                            Direct from source. Buyers bid upward. Every transaction anchored to blockchain.
+                            Farmers set the floor. Buyers bid upward. Every transaction anchored to blockchain.
                           </p>
                           {currentUser?.did && (
                             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full w-fit">
@@ -1383,10 +1340,10 @@ export default function App() {
 
                   {/* Quick Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend={walletBalance === 0 ? "Empty" : "Secure"} />
-                    <KPICard title="Active Bids" value={dashboardStats.activeBids} icon={Gavel} trend={`${dashboardStats.activeBids} active`} />
-                    <KPICard title="Won Auctions" value={dashboardStats.wonAuctions} icon={Award} trend={`${dashboardStats.wonAuctions} this week`} />
-                    <KPICard title="Total Saved" value={formatINR(dashboardStats.totalSaved)} icon={TrendingUp} trend="estimated" />
+                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend="+Γé╣0 today" />
+                    <KPICard title="Active Bids" value="0" icon={Gavel} trend="0 leading" />
+                    <KPICard title="Won Auctions" value="0" icon={Award} trend="+0 this week" />
+                    <KPICard title="Total Saved" value="Γé╣0" icon={TrendingUp} trend="+0% vs mandi rates" />
                   </div>
 
                   {/* Featured Auctions */}
@@ -1438,7 +1395,7 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h1 className="text-2xl font-bold">Live Auctions</h1>
-                      <p className="text-muted-foreground">Bid on fresh produce directly from verified sources</p>
+                      <p className="text-muted-foreground">Bid on fresh produce directly from Karnataka farmers</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1460,7 +1417,7 @@ export default function App() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredListings.map(listing => (
-                      <AuctionCard key={listing.id} listing={listing} onBid={handleBid} onRelease={handleEscrowRelease} />
+                      <AuctionCard key={listing.id} listing={listing} onBid={handleBid} />
                     ))}
                   </div>
                 </motion.div>
@@ -1751,8 +1708,8 @@ export default function App() {
 
                   {/* KPI Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <KPICard title="Total GMV" value="₹0" icon={IndianRupee} trend="+0% this week" trendUp />
-                    <KPICard title="Active Agents" value="0" icon={Users} trend="+0 this week" trendUp />
+                    <KPICard title="Total GMV" value="Γé╣0" icon={IndianRupee} trend="+0% this week" trendUp />
+                    <KPICard title="Active Farmers" value="0" icon={Users} trend="+0 this week" trendUp />
                     <KPICard title="Active Auctions" value="0" icon={Gavel} />
                     <KPICard title="Success Rate" value="0%" icon={CheckCircle2} trend="+0%" trendUp />
                   </div>
@@ -1771,9 +1728,9 @@ export default function App() {
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto text-center py-8">
-                        <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                        <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">≡ƒôè</div>
                         <p className="text-muted-foreground font-medium">No activity to display</p>
-                        <p className="text-sm text-muted-foreground opacity-70">Agent details will populate here once active.</p>
+                        <p className="text-sm text-muted-foreground opacity-70">Farmer details will populate here once active.</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -1799,7 +1756,7 @@ export default function App() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3 text-center py-8">
-                          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-500 opacity-20" />
+                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">Γ£à</div>
                           <p className="text-muted-foreground font-medium">No actions required</p>
                           <p className="text-sm text-muted-foreground opacity-70">You have 0 disputes and 0 pending verifications.</p>
                         </div>
@@ -1885,7 +1842,7 @@ export default function App() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3 text-center py-8">
-                          <Receipt className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-20 hover:opacity-40 transition-opacity" />
+                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">≡ƒô¡</div>
                           <p className="text-muted-foreground font-medium">No recent transactions</p>
                           <p className="text-sm text-muted-foreground opacity-70">Your payment and top-up history will appear here.</p>
                         </div>
@@ -1916,7 +1873,7 @@ export default function App() {
                     <TabsContent value="active" className="mt-4">
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12">
-                          <Package className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                          <div className="text-5xl mb-3 opacity-20">≡ƒôª</div>
                           <p className="font-medium">No active orders</p>
                           <p className="text-sm text-muted-foreground">When you win an auction, your active order will appear here.</p>
                         </CardContent>
@@ -1926,7 +1883,7 @@ export default function App() {
                     <TabsContent value="completed" className="mt-4">
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12">
-                          <CheckCircle2 className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                          <div className="text-5xl mb-3 opacity-20">Γ£à</div>
                           <p className="font-medium">No completed orders yet</p>
                           <p className="text-sm text-muted-foreground">Your successfully settled orders will be recorded here.</p>
                         </CardContent>
@@ -1936,7 +1893,7 @@ export default function App() {
                     <TabsContent value="disputed" className="mt-4">
                       <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12">
-                          <AlertTriangle className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                          <div className="text-5xl mb-3 opacity-20">≡ƒæì</div>
                           <p className="font-medium">No disputed orders</p>
                           <p className="text-sm text-muted-foreground">You don't have any orders currently under dispute.</p>
                         </CardContent>
@@ -1959,7 +1916,7 @@ export default function App() {
 
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-16">
-                      <Handshake className="h-16 w-16 text-muted-foreground opacity-20 mb-4" />
+                      <div className="text-6xl mb-4 opacity-20 hover:opacity-40 transition-opacity">≡ƒñ¥</div>
                       <h3 className="text-xl font-semibold mb-2">No Active Disputes</h3>
                       <p className="text-muted-foreground text-center max-w-sm">
                         You're all caught up! There are no orders requiring dispute resolution or mediation at this time.
@@ -1978,16 +1935,16 @@ export default function App() {
                   exit={{ opacity: 0 }}
                   className="space-y-6"
                 >
-                  <h1 className="text-2xl font-bold">Registered Agents</h1>
+                  <h1 className="text-2xl font-bold">Registered Farmers</h1>
 
                   <Card>
                     <CardContent className="py-12">
                       <div className="text-center">
-                        <Users className="h-12 w-12 text-muted-foreground opacity-20 mx-auto mb-3" />
-                        <h3 className="text-xl font-semibold mb-2">No Registered Agents</h3>
+                        <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">≡ƒºæΓÇì≡ƒî╛</div>
+                        <h3 className="text-xl font-semibold mb-2">No Registered Farmers</h3>
                         <p className="text-muted-foreground">
-                          There are currently no agents registered on the platform. 
-                          Agent profiles and details will appear here once they complete the onboarding process.
+                          There are currently no farmers registered on the platform. 
+                          Farmer profiles and details will appear here once they complete the onboarding process.
                         </p>
                       </div>
                     </CardContent>
@@ -2029,7 +1986,7 @@ export default function App() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="text-center py-8">
-                          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-500 opacity-20" />
+                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">Γ£à</div>
                           <p className="text-muted-foreground font-medium">No active alerts</p>
                           <p className="text-sm text-muted-foreground opacity-70">Fraud monitoring is active and clear.</p>
                         </div>
@@ -2082,11 +2039,8 @@ export default function App() {
         <PaymentDialog
           isOpen={paymentDialogOpen}
           onClose={() => setPaymentDialogOpen(false)}
-          amount={parseFloat(topupAmount)}
+          amount={topupAmount}
           onConfirm={handlePaymentConfirm}
-          userId={currentUser?.id}
-          userPhone={currentUser?.phone}
-          userEmail={currentUser?.email}
         />
       </div>
     </TooltipProvider>
