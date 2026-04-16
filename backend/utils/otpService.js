@@ -69,17 +69,45 @@ const sendSMS = async (phoneNumber, message) => {
   }
 
   try {
+    // Strict 10-digit normalization for Indian numbers (remove 91 prefix)
     let normalizedPhone = phoneNumber.replace(/\D/g, '');
-    if (!normalizedPhone.startsWith('91') && normalizedPhone.length === 10) {
-      normalizedPhone = '91' + normalizedPhone;
+    if (normalizedPhone.startsWith('91') && normalizedPhone.length === 12) {
+      normalizedPhone = normalizedPhone.substring(2);
     }
 
+<<<<<<< HEAD
     await sendWhatsAppMessage({ to: normalizedPhone, body: message });
 
     console.log(`[SMS] Sent to ${normalizedPhone}`);
     return true;
   } catch (error) {
     console.error('[SMS] WhatsApp send error:', error.message);
+=======
+    const response = await axios.get(FAST2SMS_BASE_URL, {
+      params: {
+        authorization: FAST2SMS_API_KEY,
+        route: 'q',
+        message: message,
+        language: 'english',
+        flash: 0,
+        numbers: normalizedPhone
+      }
+    });
+
+    if (response.data.return === true) {
+      console.log(`[SMS] Sent to ${normalizedPhone}`);
+      return true;
+    } else {
+      console.error('[SMS] Fast2SMS error response:', response.data);
+      return false;
+    }
+  } catch (error) {
+    if (error.response) {
+      console.error('[SMS] Fast2SMS API error response:', error.response.data);
+    } else {
+      console.error('[SMS] Fast2SMS API error:', error.message);
+    }
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
     return false;
   }
 };

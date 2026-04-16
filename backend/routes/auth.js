@@ -102,11 +102,7 @@ router.post('/login', [
         userType: userType,
         email: user.email,
         name: user.name,
-        isDemo: user.isDemo || false,
-        role: user.role || userType
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+    },
     );
 
     // Return user data (exclude password)
@@ -116,7 +112,7 @@ router.post('/login', [
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role || userType,
+      role: user.role === 'buyer' ? 'retailer' : (user.role || userType),
       isDemo: user.isDemo || false,
       walletBalance: user.walletBalance || 0,
       trustScore: user.trustScore || 80
@@ -253,7 +249,8 @@ router.post('/signup', [
         upiVerified: false,
         landVerified: false,
         language: 'Kannada',
-        profileImage: ''
+        profileImage: '',
+        walletBalance: 0
       });
     }
 
@@ -318,10 +315,10 @@ router.post('/demo-login', async (req, res) => {
   try {
     const { role } = req.body;
 
-    if (!role || !['buyer', 'farmer', 'admin'].includes(role)) {
+    if (!role || !['buyer', 'farmer', 'admin', 'agent'].includes(role)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid role. Must be buyer, farmer, or admin'
+        error: 'Invalid role. Must be buyer, farmer, admin, or agent'
       });
     }
 
@@ -344,8 +341,13 @@ router.post('/demo-login', async (req, res) => {
           type: 'Retailer',
           location: 'Bengaluru',
           walletBalance: 0,
+<<<<<<< HEAD
           totalBids: 156,
           wonAuctions: 89,
+=======
+          totalBids: 0,
+          wonAuctions: 0,
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
           trustScore: 98,
           joinedDate: '2024-07-01',
           gstNumber: 'GSTIN001',
@@ -393,7 +395,8 @@ router.post('/demo-login', async (req, res) => {
           crops: ['Tomatoes', 'Chilies', 'Onions'],
           profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
           isDemo: true,
-          role: 'farmer'
+          role: 'farmer',
+          walletBalance: 0
         };
 
         // Hash demo password
@@ -460,6 +463,28 @@ router.post('/demo-login', async (req, res) => {
       } else {
         userType = user.role || 'admin';
       }
+    } else if (role === 'agent') {
+      const DEMO_AGENT_EMAIL = 'demo.agent@farmbid.com';
+      user = await Farmer.findOne({ email: DEMO_AGENT_EMAIL });
+      if (!user) {
+        const demoAgentData = {
+          code: 'AGENT001',
+          name: 'Suresh Agent',
+          email: DEMO_AGENT_EMAIL,
+          phone: '+91 90000 00001',
+          village: 'Kolar Town',
+          district: 'Kolar',
+          trustScore: 90,
+          role: 'agent',
+          isDemo: true,
+          joinedDate: new Date().toISOString().split('T')[0]
+        };
+        const salt = await bcrypt.genSalt(10);
+        demoAgentData.password = await bcrypt.hash('demo123', salt);
+        user = new Farmer(demoAgentData);
+        await user.save();
+      }
+      userType = 'farmer';
     }
 
     // Generate JWT token
@@ -697,7 +722,7 @@ router.post('/google-login', async (req, res) => {
             location: 'Not specified',
             role: 'buyer',
             joinedDate: new Date().toISOString().split('T')[0],
-            walletBalance: 0, // No seed money as requested
+            walletBalance: 0,
             trustScore: 80,
             isDemo: false
          });
@@ -718,6 +743,7 @@ router.post('/google-login', async (req, res) => {
             joinedDate: new Date().toISOString().split('T')[0],
             trustScore: 50,
             crops: [],
+            walletBalance: 0,
             isDemo: false
          });
        }
@@ -774,6 +800,144 @@ router.post('/google-login', async (req, res) => {
   } catch (error) {
     console.error('Google login error:', error);
     res.status(500).json({ success: false, error: 'Google Authentication failed', details: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/auth/facebook-login
+ * @desc    Authenticate or register user with Facebook Single Sign-on
+ * @access  Public
+ */
+router.post('/facebook-login', async (req, res) => {
+  try {
+    const { token, role } = req.body; // default to buyer
+    const userRole = role || 'buyer';
+
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'No token provided' });
+    }
+
+    // Verify Facebook Access Token by fetching user profile
+    const userInfoRes = await fetch(`https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${token}`);
+    
+    if (!userInfoRes.ok) {
+       return res.status(401).json({ success: false, error: 'Invalid Facebook access token' });
+    }
+
+    const payload = await userInfoRes.json();
+    const { email, name, id: facebookId, picture } = payload;
+    const profilePicture = picture?.data?.url;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Facebook account missing email' });
+    }
+
+    // Check if user exists across all models mapped to this email
+    let user = await Buyer.findOne({ email });
+    let userType = 'buyer';
+
+    if (!user) {
+      user = await Farmer.findOne({ email });
+      if (user) {
+        userType = 'farmer';
+      }
+    }
+
+    if (!user) {
+       // Create a new user since they don't exist
+       userType = ['farmer'].includes(userRole.toLowerCase()) ? 'farmer' : 'buyer';
+       
+       if (userType === 'buyer') {
+         const buyerCount = await Buyer.countDocuments();
+         user = new Buyer({
+            code: `B${String(buyerCount + 1).padStart(3, '0')}`,
+            name,
+            email,
+            phone: `FB-${facebookId}`,
+            password: crypto.randomBytes(16).toString('hex'),
+            profileImage: profilePicture,
+            type: 'Individual',
+            location: 'Not specified',
+            role: 'buyer',
+            joinedDate: new Date().toISOString().split('T')[0],
+            walletBalance: 0,
+            trustScore: 80,
+            isDemo: false
+         });
+       } else {
+         const farmerCount = await Farmer.countDocuments();
+         user = new Farmer({
+            code: `KA-XX-${String(farmerCount + 1).padStart(3, '0')}`,
+            name,
+            email,
+            phone: `FB-${facebookId}`,
+            password: crypto.randomBytes(16).toString('hex'),
+            profileImage: profilePicture,
+            village: 'Unknown',
+            district: 'Unknown',
+            pincode: '000000',
+            landSize: '0 acres',
+            role: 'farmer',
+            joinedDate: new Date().toISOString().split('T')[0],
+            trustScore: 50,
+            crops: [],
+            walletBalance: 0,
+            isDemo: false
+         });
+       }
+       await user.save();
+    } else {
+      // Update missing Facebook Info if they just logged in differently
+      if (!user.profileImage && profilePicture) {
+        user.profileImage = profilePicture;
+        await user.save();
+      }
+    }
+
+    // Generate our JWT token using our standard secret
+    const jwtToken = jwt.sign(
+      {
+        userId: user._id.toString(),
+        userType: userType,
+        email: user.email,
+        name: user.name,
+        isDemo: user.isDemo || false,
+        role: user.role || userType
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Form user response
+    const userResponse = {
+      id: user._id,
+      code: user.code,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '',
+      role: user.role || userType,
+      isDemo: user.isDemo || false,
+      walletBalance: user.walletBalance || 0,
+      trustScore: user.trustScore || 80,
+      profileImage: user.profileImage || null
+    };
+
+    if (userType === 'farmer') {
+      userResponse.village = user.village;
+      userResponse.district = user.district;
+      userResponse.landSize = user.landSize;
+      userResponse.crops = user.crops || [];
+    }
+
+    res.json({
+      success: true,
+      token: jwtToken,
+      user: userResponse
+    });
+
+  } catch (error) {
+    console.error('Facebook login error:', error);
+    res.status(500).json({ success: false, error: 'Facebook Authentication failed', details: error.message });
   }
 });
 
@@ -934,7 +1098,6 @@ router.post('/verify-otp', [
     await otpRecord.save();
 
     let user;
-    let isNewUser = false;
 
     // Check if user exists using normalized phone variants
     const normalizedPhoneWithPlus = `+${normalizedPhone}`;
@@ -951,21 +1114,23 @@ router.post('/verify-otp', [
 
       if (userType === 'buyer') {
         const buyerCount = await Buyer.countDocuments();
-        const buyerType = extraData.type || 'Individual';
-
         user = new Buyer({
           ...extraData,
           code: `B${String(buyerCount + 1).padStart(3, '0')}`,
           name: name || email,
           email: email.toLowerCase(),
           phone: `+${normalizedPhone}`,
-          type: buyerType,
+          type: extraData.type || 'Individual',
           location: extraData.location || 'Not specified',
           isDemo: false,
           role: 'buyer',
           joinedDate: new Date().toISOString().split('T')[0],
           walletBalance: 0,
+<<<<<<< HEAD
           password: password ? await bcrypt.hash(password, await bcrypt.genSalt(10)) : await bcrypt.hash(crypto.randomBytes(16).toString('hex'), await bcrypt.genSalt(10))
+=======
+          password: password ? await bcrypt.hash(password, await bcrypt.genSalt(10)) : undefined
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
         });
       } else {
         const farmerCount = await Farmer.countDocuments();
@@ -988,17 +1153,21 @@ router.post('/verify-otp', [
           joinedDate: new Date().toISOString().split('T')[0],
           trustScore: 50,
           crops: extraData.crops || [],
+<<<<<<< HEAD
           aadhaarVerified: false,
           upiVerified: false,
           landVerified: false,
           language: 'Kannada',
           profileImage: '',
           password: password ? await bcrypt.hash(password, await bcrypt.genSalt(10)) : await bcrypt.hash(crypto.randomBytes(16).toString('hex'), await bcrypt.genSalt(10))
+=======
+          walletBalance: 0,
+          password: password ? await bcrypt.hash(password, await bcrypt.genSalt(10)) : undefined
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
         });
       }
 
       await user.save();
-      isNewUser = true;
     }
 
     if (!user) {
@@ -1012,27 +1181,36 @@ router.post('/verify-otp', [
     const token = jwt.sign(
       {
         userId: user._id.toString(),
-        userType,
+        userType: userType,
         email: user.email,
         name: user.name,
-        isDemo: false,
-        role: userType
+        isDemo: user.isDemo || false,
+        role: user.role || userType
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    // Return user data
+    // Form user response
     const userResponse = {
       id: user._id,
       code: user.code,
       name: user.name,
       email: user.email,
+<<<<<<< HEAD
       phone: user.phone,
       role: userType,
       isDemo: false,
       walletBalance: userType === 'buyer' ? (user.walletBalance ?? 0) : 0,
       trustScore: userType === 'farmer' ? (user.trustScore || 50) : 80
+=======
+      phone: user.phone || '',
+      role: user.role || userType,
+      isDemo: user.isDemo || false,
+      walletBalance: user.walletBalance || 0,
+      trustScore: user.trustScore || 80,
+      profileImage: user.profileImage || null
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
     };
 
     if (userType === 'farmer') {
@@ -1042,23 +1220,126 @@ router.post('/verify-otp', [
       userResponse.crops = user.crops || [];
     }
 
-    // Clean up OTP
-    await OTP.deleteOne({ _id: otpRecord._id });
-
     res.json({
       success: true,
-      token,
-      user: userResponse,
-      isNewUser,
-      message: isNewUser ? 'Account created successfully' : 'Logged in successfully'
+      token: token,
+      user: userResponse
     });
 
   } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error verifying OTP'
+    console.error('OTP verification error:', error);
+    res.status(500).json({ success: false, error: 'Authentication failed', details: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/auth/verify-otp-success
+ * @desc    Dedicated route for cleanup after successful OTP verification if needed
+ */
+router.post('/verify-otp-cleanup', async (req, res) => {
+  const { phone } = req.body;
+  if(phone) await OTP.deleteOne({ phoneNumber: phone.replace(/\D/g, '') });
+  res.json({ success: true });
+});
+
+/**
+ * @route   POST /api/auth/linkedin-login
+ * @desc    Authenticate or register user with LinkedIn Single Sign-on
+ * @access  Public
+ */
+router.post('/linkedin-login', async (req, res) => {
+  try {
+    const { token, role } = req.body;
+    const userRole = role || 'buyer';
+
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'No token provided' });
+    }
+
+    const userInfoRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: { Authorization: `Bearer ${token}` }
     });
+    
+    if (!userInfoRes.ok) {
+       return res.status(401).json({ success: false, error: 'Invalid LinkedIn access token' });
+    }
+
+    const payload = await userInfoRes.json();
+    const { email, name, sub: linkedinId, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'LinkedIn account missing email' });
+    }
+
+    let user = await Buyer.findOne({ email });
+    let userType = 'buyer';
+
+    if (!user) {
+      user = await Farmer.findOne({ email });
+      if (user) userType = 'farmer';
+    }
+
+    if (!user) {
+       userType = ['farmer'].includes(userRole.toLowerCase()) ? 'farmer' : 'buyer';
+       if (userType === 'buyer') {
+         const buyerCount = await Buyer.countDocuments();
+         user = new Buyer({
+            code: `B${String(buyerCount + 1).padStart(3, '0')}`,
+            name, email,
+            phone: `LI-${linkedinId}`,
+            password: crypto.randomBytes(16).toString('hex'),
+            profileImage: picture,
+            type: 'Individual',
+            location: 'Not specified',
+            role: 'buyer',
+            joinedDate: new Date().toISOString().split('T')[0],
+            walletBalance: 0,
+            trustScore: 80,
+            isDemo: false
+         });
+       } else {
+         const farmerCount = await Farmer.countDocuments();
+         user = new Farmer({
+            code: `KA-XX-${String(farmerCount + 1).padStart(3, '0')}`,
+            name, email,
+            phone: `LI-${linkedinId}`,
+            password: crypto.randomBytes(16).toString('hex'),
+            profileImage: picture,
+            village: 'Unknown', district: 'Unknown', pincode: '000000', landSize: '0 acres',
+            role: 'farmer',
+            joinedDate: new Date().toISOString().split('T')[0],
+            trustScore: 50, crops: [],
+            walletBalance: 0,
+            isDemo: false
+         });
+       }
+       await user.save();
+    }
+
+    const jwtToken = jwt.sign(
+      { userId: user._id.toString(), userType, email, name, isDemo: false, role: user.role || userType },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.json({
+      success: true,
+      token: jwtToken,
+      user: {
+        id: user._id,
+        code: user.code,
+        name: user.name,
+        email: user.email,
+        role: user.role || userType,
+        walletBalance: user.walletBalance || 0,
+        trustScore: user.trustScore || 80,
+        profileImage: user.profileImage || null
+      }
+    });
+
+  } catch (error) {
+    console.error('LinkedIn login error:', error);
+    res.status(500).json({ success: false, error: 'LinkedIn Authentication failed' });
   }
 });
 
@@ -1073,18 +1354,12 @@ router.post('/resend-otp', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: errors.array()
-      });
+      return res.status(400).json({ success: false, error: 'Validation failed', details: errors.array() });
     }
-
     const { phone } = req.body;
-
     const result = await otpService.resendOTP(phone);
-
     if (result.success) {
+<<<<<<< HEAD
       const normalizedPhone = phone.replace(/\D/g, '');
       
       // Store the new OTP in database for verification
@@ -1108,18 +1383,15 @@ router.post('/resend-otp', [
         message: result.message,
         expiryMinutes: result.expiryMinutes
       });
+=======
+      return res.json({ success: true, message: result.message, expiryMinutes: result.expiryMinutes });
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
     } else {
-      return res.status(400).json({
-        success: false,
-        error: result.message
-      });
+      return res.status(400).json({ success: false, error: result.message });
     }
   } catch (error) {
     console.error('Resend OTP error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error resending OTP'
-    });
+    res.status(500).json({ success: false, error: 'Error resending OTP' });
   }
 });
 

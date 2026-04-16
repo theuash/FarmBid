@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
@@ -22,3 +23,16 @@
     ".next"
   ]
 }
+=======
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./*"],
+        "@/components/*": ["./components/*"],
+        "@/lib/*": ["./lib/*"],
+        "@/app/*": ["./app/*"]
+      }
+    },
+    "exclude": ["node_modules", ".next"]
+  }
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904

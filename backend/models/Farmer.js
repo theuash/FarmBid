@@ -89,7 +89,7 @@ const farmerSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['buyer', 'farmer', 'admin'],
+    enum: ['buyer', 'farmer', 'admin', 'agent'],
     default: 'farmer'
   }
 }, {

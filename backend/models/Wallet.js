@@ -8,7 +8,7 @@ const walletSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['buyer', 'farmer'],
+    enum: ['buyer', 'farmer', 'transporter', 'admin'],
     required: true
   },
   balance: {

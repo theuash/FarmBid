@@ -52,7 +52,7 @@ router.get('/', async (req, res, next) => {
       farmerTrustScore: listing.farmerId?.trustScore
     }));
 
-    const inMemoryListings = Array.from(listingStore.values())
+    const inMemoryListings = listingStore && typeof listingStore.values === 'function' ? Array.from(listingStore.values()) : []
       .filter(listing => listing && listing.status)
       .filter(listing => {
         // Exclude memory listings if a DB listing already has the same listingId/farmer
@@ -98,6 +98,25 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// GET /api/listings/farmer/:farmerId - Get listings for a specific farmer
+router.get('/farmer/:farmerId', async (req, res, next) => {
+  try {
+    const listings = await Listing.find({ farmerId: req.params.farmerId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const dbListings = listings.map(listing => ({
+      id: listing._id.toString(),
+      ...listing,
+      ...updateAuctionStatus(listing.auctionEndsAt)
+    }));
+
+    res.json({ success: true, listings: dbListings });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/listings/:id - Get specific listing with bids
 router.get('/:id', async (req, res, next) => {
   try {
@@ -108,9 +127,9 @@ router.get('/:id', async (req, res, next) => {
     let isInMemory = false;
 
     if (!listing) {
-      const inMemoryListing = Array.from(listingStore.values()).find(
-        (item) => item.id === req.params.id || item.listingId === req.params.id
-      );
+      const inMemoryListing = (listingStore && typeof listingStore.values === 'function') 
+        ? Array.from(listingStore.values()).find(item => item.id === req.params.id || item.listingId === req.params.id)
+        : null;
       if (inMemoryListing) {
         isInMemory = true;
         listingResult = inMemoryListing;
@@ -226,12 +245,13 @@ router.post('/', handleValidationErrors, listingValidation, async (req, res, nex
       auctionEndsAt,
       qualityIndex: qualityIndex || 85,
       freshness: freshness || 85,
-      surfaceDamage: surfaceDamage || 10,
       colorUniformity: colorUniformity || 85,
       qualityGrade,
       status: 'live',
       location,
-      pincode
+      pincode,
+      source: req.body.source || 'web_farmer',
+      agentId: req.body.agentId || null
     });
 
     await listing.save();
@@ -283,9 +303,23 @@ async function updateAuctionStatusForListings(ListingModel) {
   try {
     const now = new Date();
 
-    // Update ended auctions
+    // 1. Set to 'won' if time is up and there are bids
     await ListingModel.updateMany(
-      { auctionEndsAt: { $lte: now }, status: { $ne: 'ended' } },
+      { 
+        auctionEndsAt: { $lte: now }, 
+        status: { $nin: ['ended', 'won', 'settled'] },
+        totalBids: { $gt: 0 }
+      },
+      { $set: { status: 'won' } }
+    );
+
+    // 2. Set to 'ended' if time is up and there are NO bids
+    await ListingModel.updateMany(
+      { 
+        auctionEndsAt: { $lte: now }, 
+        status: { $nin: ['ended', 'won', 'settled'] },
+        totalBids: 0
+      },
       { $set: { status: 'ended' } }
     );
 

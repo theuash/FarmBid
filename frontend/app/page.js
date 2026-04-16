@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
+import FarmerAgentDashboard from '@/components/FarmerAgentDashboard'
 
 // Hooks
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -34,7 +35,7 @@ import {
   ArrowUpRight, ArrowDownRight, Send, Mic, Image as ImageIcon,
   Phone, MoreVertical, Check, Copy, Filter, RefreshCw, Truck,
   FileText, CreditCard, Building2, Star, Award, Zap, Globe, Lock,
-  LogOut, User, Fingerprint, Receipt, Handshake
+  LogOut, User, Fingerprint, Receipt, Handshake, PackageCheck
 } from 'lucide-react'
 
 // WhatsApp demo messages
@@ -107,8 +108,9 @@ const formatINR = (amount) => {
 const QualityRing = ({ value, size = 60 }) => {
   const radius = (size - 8) / 2
   const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference - (value / 100) * circumference
-  const color = value >= 85 ? '#16a34a' : value >= 70 ? '#ca8a04' : '#dc2626'
+  const val = Number(value) || 0
+  const strokeDashoffset = circumference - (val / 100) * circumference
+  const color = val >= 85 ? '#16a34a' : val >= 70 ? '#ca8a04' : '#dc2626'
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -193,7 +195,7 @@ const CountdownTimer = ({ endsAt, status }) => {
 }
 
 // Auction Card Component
-const AuctionCard = ({ listing, onBid }) => {
+const AuctionCard = ({ listing, onBid, onRelease }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -208,8 +210,8 @@ const AuctionCard = ({ listing, onBid }) => {
             className="w-full h-40 object-cover"
           />
           <div className="absolute top-2 left-2 flex gap-1.5">
-            <Badge variant={listing.status === 'ending_soon' ? 'destructive' : 'default'} className="backdrop-blur-sm">
-              {listing.status === 'ending_soon' ? 'ðŸ”¥ Ending Soon' : listing.status === 'live' ? 'ðŸŸ¢ Live' : listing.status}
+            <Badge variant={listing.status === 'won' ? 'outline' : listing.status === 'ending_soon' ? 'destructive' : 'default'} className={`backdrop-blur-sm ${listing.status === 'won' ? 'border-amber-500 text-amber-500 bg-amber-500/10' : ''}`}>
+              {listing.status === 'won' ? '🏆 WON' : listing.status === 'ending_soon' ? '🔥 Ending Soon' : listing.status === 'live' ? '🟢 Live' : listing.status}
             </Badge>
           </div>
           <div className="absolute top-2 right-2 space-y-1">
@@ -300,11 +302,18 @@ const AuctionCard = ({ listing, onBid }) => {
           </div>
         </CardContent>
 
-        <CardFooter className="pt-0">
-          <Button className="w-full" onClick={() => onBid(listing)}>
-            <Gavel className="h-4 w-4 mr-2" />
-            Place Bid
-          </Button>
+        <CardFooter className="pt-0 flex flex-col gap-2">
+          {listing.status === 'won' || listing.status === 'ended' ? (
+            <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20" onClick={() => onRelease && onRelease(listing.id || listing._id)}>
+              <PackageCheck className="h-4 w-4 mr-2" />
+              Confirm Delivery ✅
+            </Button>
+          ) : (
+            <Button className="w-full" onClick={() => onBid(listing)}>
+              <Gavel className="h-4 w-4 mr-2" />
+              Place Bid
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </motion.div>
@@ -600,21 +609,25 @@ const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
   )
 }
 
-const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
+const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId, userPhone, userEmail }) => {
   const isMobile = useIsMobile()
-  const [method, setMethod] = useState('phonepe')
+  const [method, setMethod] = useState('razorpay')
   const [paymentPhase, setPaymentPhase] = useState('select')
   const [isVerifying, setIsVerifying] = useState(false)
   const [upiUri, setUpiUri] = useState('')
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+  const [newBalanceAfterPayment, setNewBalanceAfterPayment] = useState(0)
+  const [initialBalance, setInitialBalance] = useState(0)
+  const API_URL = typeof window !== 'undefined' 
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3001/api' 
+        : `http://${window.location.hostname}:3001/api`)
+    : 'http://localhost:3001/api'
 
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || '9019808476-2@axl'
   const txRef = useMemo(() => `FB${Date.now()}${Math.floor(Math.random() * 1000)}`, [isOpen])
 
   const methods = [
-    { id: 'phonepe', name: 'PhonePe', isImage: true, imgSrc: 'https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg' },
-    { id: 'gpay', name: 'Google Pay', isImage: true, imgSrc: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.png' },
-    { id: 'razorpay', name: 'Razorpay', isImage: true, imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' },
-    { id: 'card', name: 'Credit Card', icon: <CreditCard className="h-6 w-6" />, isImage: false },
+    { id: 'razorpay', name: 'Secure Razorpay Checkout', isImage: true, imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' },
   ]
 
   // Auto-confirm when user returns from payment app
@@ -631,23 +644,123 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [paymentPhase, isVerifying])
 
-  const generateUpiUri = (amt) => {
-    const formattedAmount = Number(amt).toFixed(2)
+  const generateUpiUri = (amount) => {
+    const formattedAmount = Number(amount).toFixed(2);
+    // Extremely simplified URI for maximum compatibility (some apps reject long TRs or custom Notes)
     const params = [
-      `pa=8618118952@axl`,
+      `pa=9019808476-2@ybl`,
       `pn=${encodeURIComponent('FarmBid')}`,
       `am=${formattedAmount}`,
-      `cu=INR`,
-      `tn=${encodeURIComponent(`Deposit_${txRef.slice(-6)}`)}`
+      `cu=INR`
     ].join('&')
     return `upi://pay?${params}`
   }
 
-  const handleRazorpay = () => {
-    // Open the live Razorpay payment page safely in a new tab
-    window.open('https://razorpay.me/@sachin2844', '_blank')
-    toast.info('Opening Razorpay Payment Page...')
-    setPaymentPhase('processing')
+    // Advanced Sanitization for Razorpay (Targeting 10-digit Indian Mobile)
+    const sanitizedPhone = useMemo(() => {
+      let cleaned = (userPhone || '').replace(/[^0-9]/g, '');
+      // If it has country code 91, strip it to leave 10 digits
+      if (cleaned.length >= 12 && cleaned.startsWith('91')) return cleaned.slice(-10);
+      if (cleaned.length === 11 && cleaned.startsWith('0')) return cleaned.slice(1);
+      return cleaned.slice(-10); // Standard 10 digits
+    }, [userPhone]);
+
+    const handleRazorpay = async () => {
+    // Force grab fresh data from localStorage as a fail-safe
+    const rawUser = localStorage.getItem('farmbid_user');
+    const user = rawUser ? JSON.parse(rawUser) : {};
+    const contactNum = sanitizedPhone || (user.phone || '').replace(/[^0-9]/g, '').slice(-10);
+    const emailAddr = userEmail || user.email || '';
+
+    if (!amount || amount <= 0) return toast.error('Please enter a valid amount');
+    setIsVerifying(true);
+    try {
+      const token = localStorage.getItem('farmbid_token');
+      const res = await fetch(`${API_URL}/payments/create-order`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setIsVerifying(false);
+        console.error('Razorpay initiation failed:', data);
+        return toast.error(`Initiation failed: ${data.message || data.error || 'Server error'}`);
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => {
+        const rzp = new window.Razorpay({
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_SdxN7CqrUoaRHi',
+          amount: amount * 100,
+          currency: 'INR',
+          name: 'FarmBid',
+          description: `Wallet Top-up: ₹${amount}`,
+          order_id: data.orderId,
+          // Explicitly command Razorpay interface to prioritize and render the UPI QR Flow 
+          config: {
+            display: {
+              blocks: {
+                qr: {
+                  name: 'Scan QR to Pay',
+                  instruments: [{ method: 'upi', flows: ['qr'] }]
+                }
+              },
+              sequence: ['block.qr'],
+              preferences: { show_default_blocks: true }
+            }
+          },
+          handler: async (resp) => {
+            try {
+              const token = localStorage.getItem('farmbid_token');
+              const vres = await fetch(`${API_URL}/payments/verify-payment`, {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ 
+                  amount, 
+                  razorpay_order_id: resp.razorpay_order_id, 
+                  razorpay_payment_id: resp.razorpay_payment_id, 
+                  razorpay_signature: resp.razorpay_signature 
+                })
+              });
+              const vdata = await vres.json();
+              if (vdata.success) {
+                setNewBalanceAfterPayment(vdata.balance);
+                setPaymentPhase('success');
+                onConfirm(vdata.balance);
+              } else {
+                toast.error('Verification failed: ' + (vdata.message || 'Unknown error'));
+              }
+            } catch (e) {
+              toast.error('Server connection error during verification.');
+            } finally {
+              setIsVerifying(false);
+            }
+          },
+          modal: { ondismiss: () => setIsVerifying(false), escape: false },
+          prefill: { 
+            name: user.name || 'FarmBid User',
+            contact: contactNum,
+            email: emailAddr
+          },
+          readonly: { contact: true, email: true, name: true },
+          theme: { color: '#16a34a' }
+        });
+        rzp.open();
+      };
+      document.body.appendChild(script);
+    } catch (e) {
+      toast.error('Error starting payment process.');
+      setIsVerifying(false);
+    }
   }
 
   const handlePayClick = () => {
@@ -692,7 +805,6 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          userId,
           amount,
           paymentMethod: method,
           referenceId: txRef
@@ -700,8 +812,9 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
       })
       const data = await response.json()
       if (data.success) {
+        setNewBalanceAfterPayment(data.newBalance);
+        setPaymentPhase('success');
         onConfirm(data.newBalance)
-        setPaymentPhase('success')
       } else {
         toast.error(data.error || 'Failed to update wallet balance')
         hasPaid.current = false // Allow retry
@@ -713,6 +826,39 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
       setIsVerifying(false)
     }
   }
+
+  // UPI Polling for "Auto Redirect"
+  useEffect(() => {
+    let interval;
+    if (isOpen && paymentPhase === 'scanner' && userId) {
+      // First, get initial balance if not set
+      const fetchInitial = async () => {
+        try {
+          const res = await fetch(`${API_URL}/stats/buyer/${userId}`);
+          const data = await res.json();
+          if (data.success) {
+            setInitialBalance(data.stats.walletBalance);
+          }
+        } catch (e) {}
+      };
+      
+      if (initialBalance === 0) fetchInitial();
+
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_URL}/stats/buyer/${userId}`);
+          const data = await res.json();
+          if (data.success && data.stats.walletBalance > initialBalance) {
+            setNewBalanceAfterPayment(data.stats.walletBalance);
+            setPaymentPhase('success');
+            onConfirm(data.stats.walletBalance);
+            clearInterval(interval);
+          }
+        } catch (e) {}
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isOpen, paymentPhase, userId, initialBalance]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && !isVerifying && paymentPhase !== 'success' && onClose()}>
@@ -734,7 +880,7 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
 
         <div className="py-4">
           {paymentPhase === 'select' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid ${methods.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
               {methods.map((m) => (
                 <div
                   key={m.id}
@@ -753,7 +899,7 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
           {paymentPhase === 'scanner' && (
             <div className="flex flex-col items-center justify-center space-y-4 py-4">
               <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
-                <QRCodeSVG value={upiUri} size={220} level="H" includeMargin={true} />
+                <img src="/sachin-qr.jpg" alt="Scan to Pay via PhonePe" className="w-[220px] rounded object-contain" />
               </div>
               <div className="text-center space-y-1">
                 <Badge variant="outline" className="animate-pulse">
@@ -855,6 +1001,13 @@ export default function App() {
   const [topupLoading, setTopupLoading] = useState(false)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   
+  // Real Dashboard Stats
+  const [dashboardStats, setDashboardStats] = useState({
+    activeBids: 0,
+    wonAuctions: 0,
+    totalSaved: 0
+  });
+  
   // Authentication state
   const [currentUser, setCurrentUser] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -947,6 +1100,7 @@ export default function App() {
     const fetchData = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+<<<<<<< HEAD
         const [listingsRes, eventsRes] = await Promise.all([
           fetch(`${API_URL}/listings?status=all`),
           fetch(`${API_URL}/blockchain/events`)
@@ -964,6 +1118,27 @@ export default function App() {
           }
         } else {
           setWalletBalance(0)
+=======
+        const [listingsRes, eventsRes, statsRes] = await Promise.all([
+          fetch(`${API_URL}/listings?status=all`),
+          fetch(`${API_URL}/blockchain/events`),
+          fetch(`${API_URL}/stats/buyer/${currentUser?.id || 'demo_id'}`)
+        ])
+        const listingsData = await listingsRes.json()
+        const eventsData = await eventsRes.json()
+        const statsData = await statsRes.json()
+        
+        setListings(listingsData.listings || [])
+        setBlockchainEvents(eventsData.events || [])
+        
+        if (statsData.success) {
+          setWalletBalance(statsData.stats.walletBalance || 0)
+          setDashboardStats({
+            activeBids: statsData.stats.activeBids || 0,
+            wonAuctions: statsData.stats.wonAuctions || 0,
+            totalSaved: statsData.stats.totalSaved || 0
+          })
+>>>>>>> 59bea7c68a2acc78c12faa5c1524d3b87f6fb904
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -1221,6 +1396,36 @@ export default function App() {
     </button>
   )
 
+  // If farmer or agent, show their dedicated dashboard
+  if (isAuthenticated && currentUser && (currentUser.role === 'farmer' || currentUser.role === 'agent')) {
+    return (
+      <TooltipProvider>
+        <div className={`min-h-screen bg-background ${darkMode ? 'dark' : ''}`}>
+          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex h-16 items-center px-6 justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-primary p-1.5 rounded-lg">
+                  <Leaf className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="font-bold text-xl">FarmBid</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="hidden md:block text-right">
+                  <p className="text-sm font-bold">{currentUser.name}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">{currentUser.role === 'agent' ? 'Field Agent' : 'Farmer'}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:bg-muted rounded-full">
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </header>
+          <FarmerAgentDashboard user={currentUser} />
+        </div>
+      </TooltipProvider>
+    )
+  }
+
   return (
     <TooltipProvider>
       <div className={`min-h-screen bg-background ${darkMode ? 'dark' : ''}`}>
@@ -1302,18 +1507,13 @@ export default function App() {
               <NavItem icon={Wallet} label="Wallet" view="wallet" />
               <NavItem icon={AlertTriangle} label="Disputes" view="disputes" badge="0" />
 
-              {/* Demo Modes - Only show for demo users */}
-              {currentUser?.isDemo && (
-                <>
-                  <Separator className="my-3" />
+              <Separator className="my-3" />
 
-                  <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
-                    Demo Modes
-                  </p>
-                  <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
-                  <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
-                </>
-              )}
+              <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
+                Demo Modes
+              </p>
+              <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
+              <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
 
               <Separator className="my-3" />
 
@@ -1377,10 +1577,10 @@ export default function App() {
 
                   {/* Quick Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend="+₹0 today" />
-                    <KPICard title="Active Bids" value="0" icon={Gavel} trend="0 leading" />
-                    <KPICard title="Won Auctions" value="0" icon={Award} trend="+0 this week" />
-                    <KPICard title="Total Saved" value="₹0" icon={TrendingUp} trend="+0% vs mandi rates" />
+                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend={walletBalance === 0 ? "Empty" : "Secure"} />
+                    <KPICard title="Active Bids" value={dashboardStats.activeBids} icon={Gavel} trend={`${dashboardStats.activeBids} active`} />
+                    <KPICard title="Won Auctions" value={dashboardStats.wonAuctions} icon={Award} trend={`${dashboardStats.wonAuctions} this week`} />
+                    <KPICard title="Total Saved" value={formatINR(dashboardStats.totalSaved)} icon={TrendingUp} trend="estimated" />
                   </div>
 
                   {/* Featured Auctions */}
@@ -1454,7 +1654,7 @@ export default function App() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredListings.map(listing => (
-                      <AuctionCard key={listing.id} listing={listing} onBid={handleBid} />
+                      <AuctionCard key={listing.id} listing={listing} onBid={handleBid} onRelease={handleEscrowRelease} />
                     ))}
                   </div>
                 </motion.div>
@@ -2079,6 +2279,8 @@ export default function App() {
           amount={parseFloat(topupAmount)}
           onConfirm={handlePaymentConfirm}
           userId={currentUser?.id}
+          userPhone={currentUser?.phone}
+          userEmail={currentUser?.email}
           initialPhase="scanner"
         />
       </div>
