@@ -7,7 +7,7 @@ const Listing = require('../models/Listing');
 router.get('/', async (req, res, next) => {
   try {
     const farmersResult = await Farmer.find()
-      .sort({ trustScore: -1 })
+      .sort({ createdAt: -1 })
       .lean();
     
     const farmers = farmersResult.map(f => ({ id: f._id, ...f }));
@@ -96,7 +96,6 @@ router.get('/stats/summary', async (req, res, next) => {
         $group: {
           _id: null,
           totalFarmers: { $sum: 1 },
-          avgTrustScore: { $avg: '$trustScore' },
           totalListings: { $sum: '$totalListings' },
           verifiedFarmers: {
             $sum: {
@@ -113,15 +112,14 @@ router.get('/stats/summary', async (req, res, next) => {
     const districtStats = await Farmer.aggregate([
       { $group: {
         _id: '$district',
-        farmerCount: { $sum: 1 },
-        avgTrustScore: { $avg: '$trustScore' }
+        farmerCount: { $sum: 1 }
       }},
       { $sort: { farmerCount: -1 } }
     ]);
 
     res.json({
       success: true,
-      summary: stats[0] || { totalFarmers: 0, avgTrustScore: 0, totalListings: 0, verifiedFarmers: 0 },
+      summary: stats[0] || { totalFarmers: 0, totalListings: 0, verifiedFarmers: 0 },
       byDistrict: districtStats
     });
   } catch (error) {

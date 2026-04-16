@@ -41,12 +41,6 @@ const farmerSchema = new mongoose.Schema({
     type: String,
     default: 'Unverified'
   },
-  trustScore: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 50
-  },
   totalListings: {
     type: Number,
     default: 0

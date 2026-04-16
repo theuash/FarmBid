@@ -262,7 +262,6 @@ export default function FarmerAgentDashboard({ user }) {
   const statsData = [
     { label: 'Active Auctions', value: liveListings.length, icon: Gavel, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
     { label: 'Est. Revenue', value: formatINR(liveListings.reduce((acc, l) => acc + ((l.currentBidPerKg || 0) * (l.quantity || 0)), 0)), icon: IndianRupee, color: 'text-blue-400', bg: 'bg-blue-500/20' },
-    { label: 'Trust Score', value: `${user?.trustScore || 85}%`, icon: Shield, color: 'text-purple-400', bg: 'bg-purple-500/20' },
     { label: isAgent ? 'Farmers Covered' : 'Completed Sales', value: isAgent ? farmers.length : (user?.successfulSales || endedListings.length), icon: isAgent ? Users : TrendingUp, color: 'text-orange-400', bg: 'bg-orange-500/20' },
   ]
 
@@ -344,7 +343,6 @@ export default function FarmerAgentDashboard({ user }) {
                   {selectedFarmer && (
                     <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-sm">
                       <p className="text-emerald-400 font-bold">Listing for: {selectedFarmer.name}</p>
-                      <p className="text-muted-foreground text-xs">Trust Score: {selectedFarmer.trustScore || 50}/100</p>
                     </div>
                   )}
                 </div>
@@ -682,8 +680,6 @@ export default function FarmerAgentDashboard({ user }) {
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Trust Score</p>
-                          <Progress value={farmer.trustScore || 50} className="h-1.5 w-24 bg-muted" />
                         </div>
                         <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-xs">
                           {farmerListings.length} Listings

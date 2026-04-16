@@ -144,25 +144,6 @@ const QualityRing = ({ value, size = 60 }) => {
   )
 }
 
-// Trust Score Badge
-const TrustBadge = ({ score }) => {
-  const color = score >= 90 ? 'bg-green-500' : score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger>
-          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-xs font-medium ${color}`}>
-            <Shield className="h-3 w-3" />
-            {score}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Trust Score: {score}/100</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
 
 // Countdown Timer Component
 const CountdownTimer = ({ endsAt, status }) => {
@@ -247,7 +228,6 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
                 </span>
               </CardDescription>
             </div>
-            <TrustBadge score={listing.farmerTrustScore || 60} />
           </div>
         </CardHeader>
 
@@ -282,6 +262,16 @@ const AuctionCard = ({ listing, onBid, onRelease }) => {
               <p className="text-muted-foreground">Total Value</p>
               <p className="font-semibold text-amber-600">{formatINR((listing.currentBidPerKg || listing.minPricePerKg) * listing.quantity)}</p>
             </div>
+            {listing.highestBidderName && (
+              <div className="col-span-2 mt-1">
+                <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                  <User className="h-3 w-3" /> Highest Bidder
+                </p>
+                <Badge variant="secondary" className="bg-primary/5 text-primary border-primary/20 text-xs py-0 h-5">
+                  {listing.highestBidderName}
+                </Badge>
+              </div>
+            )}
           </div>
 
           {listing.harvestDate && (
@@ -560,7 +550,7 @@ const KPICard = ({ title, value, icon: Icon, trend: defaultTrend, trendUp: defau
 }
 
 // Bid Dialog
-const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
+const BidDialog = ({ listing, isOpen, onClose, onSubmit, walletBalance }) => {
   const [bidAmount, setBidAmount] = useState('')
   if (!listing) return null
   const minBid = listing.currentBidPerKg + 1
@@ -596,12 +586,17 @@ const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
             <p className="text-xs text-muted-foreground">Minimum bid: {formatINR(minBid)}/kg</p>
           </div>
           {bidAmount >= minBid && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-              <div className="flex justify-between items-center"><span className="text-sm">Total Lot Value</span><span className="text-xl font-bold text-primary">{formatINR(totalValue)}</span></div>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-lg border ${totalValue > walletBalance ? 'bg-destructive/10 border-destructive/20' : 'bg-primary/10 border-primary/20'}`}>
+              <div className="flex justify-between items-center"><span className="text-sm">Total Lot Value</span><span className={`text-xl font-bold ${totalValue > walletBalance ? 'text-destructive' : 'text-primary'}`}>{formatINR(totalValue)}</span></div>
+              {totalValue > walletBalance && (
+                <p className="text-[10px] text-destructive mt-1 flex items-center gap-1 font-bold italic">
+                  <AlertTriangle className="h-3 w-3" /> Insufficient balance! Please top up your wallet.
+                </p>
+              )}
             </motion.div>
           )}
         </div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleSubmit} disabled={!bidAmount || bidAmount < minBid}><Gavel className="h-4 w-4 mr-2" />Place Bid</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleSubmit} disabled={!bidAmount || bidAmount < minBid || totalValue > walletBalance}><Gavel className="h-4 w-4 mr-2" />Place Bid</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -1219,23 +1214,25 @@ export default function App() {
         toast.success('Bid placed successfully!', {
           description: `Your bid of ${formatINR(bidAmount)}/kg has been anchored to blockchain.`
         })
-        console.log(`[BidSubmit] Success! Updating listing ${listingId} locally to ₹${bidAmount}`);
-        // Update listings
-        setListings(prev => {
-          const matched = prev.find(l => String(l.id) === String(listingId));
-          if (!matched) {
-            console.warn(`[BidSubmit] Warning: Could not find listing ${listingId} in local state to update UI!`);
-          }
-          return prev.map(l =>
-            String(l.id) === String(listingId)
-              ? { ...l, currentBidPerKg: bidAmount, totalBids: (Number(l.totalBids) || 0) + 1, isUpdating: true }
-              : l
-          );
-        });
-        // Add blockchain event
+        
+        // Update listings locally with data from server if available
+        setListings(prev => prev.map(l =>
+          String(l.id) === String(listingId)
+            ? { 
+                ...l, 
+                currentBidPerKg: bidAmount, 
+                totalBids: (Number(l.totalBids) || 0) + 1, 
+                highestBidderName: currentUser.name,
+                isUpdating: true 
+              }
+            : l
+        ));
+
         if (data.blockchainEvent) {
           setBlockchainEvents(prev => [data.blockchainEvent, ...prev])
         }
+      } else {
+        toast.error(data.error || 'Failed to place bid');
       }
     } catch (error) {
       toast.error('Failed to place bid')
@@ -1385,7 +1382,6 @@ export default function App() {
               <div className="flex items-center gap-4">
                 <div className="hidden md:block text-right">
                   <p className="text-sm font-bold">{currentUser.name}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">{currentUser.role === 'agent' ? 'Field Agent' : 'Farmer'}</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:bg-muted rounded-full">
                   <LogOut className="h-5 w-5" />
@@ -2243,6 +2239,7 @@ export default function App() {
           isOpen={bidDialogOpen}
           onClose={() => setBidDialogOpen(false)}
           onSubmit={handleSubmitBid}
+          walletBalance={walletBalance}
         />
 
         {/* Payment Dialog */}
