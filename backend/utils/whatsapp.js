@@ -10,6 +10,9 @@ const fs = require('fs');
 const path = require('path');
 const chatbotEngine = require('../services/ChatbotEngine');
 
+// Shared in-memory store for real-time listing sync
+const listingStore = new Map();
+
 // Configuration
 const sessionPath = path.resolve(process.cwd(), '.wwebjs_auth');
 
@@ -108,5 +111,7 @@ module.exports = {
     sendMessage({ to: phone, body: `⚠️ Dispute on Listing ${id}\nReason: ${reason}` }),
 
   notifyFarmerListingExpired: (phone, id) =>
-    sendMessage({ to: phone, body: `⌛ Listing Expired: ${id}` })
+    sendMessage({ to: phone, body: `⌛ Listing Expired: ${id}` }),
+  
+  listingStore
 };

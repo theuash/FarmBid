@@ -50,8 +50,8 @@ const auctionSchema = new mongoose.Schema({
   },
   deliveryStatus: {
     type: String,
-    enum: ['pending', 'in_transit', 'delivered', 'failed'],
-    default: 'pending'
+    enum: ['pending', 'scheduled', 'in_transit', 'delivered', 'failed'],
+    default: 'scheduled'
   },
   disputeReason: {
     type: String
