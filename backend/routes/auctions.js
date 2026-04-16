@@ -5,6 +5,7 @@ const Delivery = require('../models/Delivery');
 const Bid = require('../models/Bid');
 const Listing = require('../models/Listing');
 const { anchorToBlockchain, createBlockchainEvent } = require('../utils/blockchain');
+const { sendWhatsAppMessage } = require('../utils/whatsapp');
 
 // GET /api/auctions/completed - Get completed/finished auctions
 router.get('/completed', async (req, res, next) => {
@@ -91,6 +92,40 @@ const createAuctionFromListing = async (listing, winningBid, auctionData = {}) =
     });
 
     await auction.save();
+    
+    // Auto-deduct from buyer's wallet
+    try {
+      const Wallet = require('../models/Wallet');
+      const WalletTransaction = require('../models/WalletTransaction');
+      const { v4: uuidv4 } = require('uuid');
+      
+      const wallet = await Wallet.findOne({ userId: winningBid.buyerId });
+      if (wallet) {
+        const balanceBefore = wallet.balance;
+        // The money was already removed from availableBalance and added to lockedAmount during the bid phase.
+        // Now we finalize the deduction by removing it from the total balance and the locked pool.
+        wallet.balance -= auction.totalValue;
+        wallet.lockedAmount = Math.max(0, wallet.lockedAmount - auction.totalValue);
+        await wallet.save();
+        
+        await WalletTransaction.create({
+          walletId: wallet._id,
+          userId: winningBid.buyerId,
+          type: 'payment',
+          amount: auction.totalValue,
+          balanceBefore,
+          balanceAfter: wallet.balance,
+          description: `Auction payment realized for ${listing.produce} (Lot: ${auction._id})`,
+          referenceId: auction._id,
+          referenceType: 'auction',
+          status: 'success'
+        });
+        console.log(`[Wallet] Auto-deducted ₹${auction.totalValue} from buyer ${winningBid.buyerId} for won auction.`);
+      }
+    } catch (walletErr) {
+      console.error('Failed to auto-deduct funds from winner wallet:', walletErr);
+      // We continue since the auction record is already saved, but this is a ledger inconsistency.
+    }
 
     // Create blockchain event for auction settlement
     await anchorToBlockchain({

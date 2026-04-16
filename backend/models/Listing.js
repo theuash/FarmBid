@@ -14,10 +14,6 @@ const listingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  farmerTrustScore: {
-    type: Number,
-    required: true
-  },
   produce: {
     type: String,
     required: true
@@ -94,7 +90,7 @@ const listingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['live', 'ended', 'ending_soon', 'cancelled'],
+    enum: ['live', 'ended', 'ending_soon', 'cancelled', 'won', 'settled'],
     default: 'live'
   },
   location: {
@@ -111,6 +107,15 @@ const listingSchema = new mongoose.Schema({
   blockchainHash: {
     type: String,
     default: () => '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')
+  },
+  source: {
+    type: String,
+    enum: ['whatsapp', 'web_farmer', 'web_agent'],
+    default: 'web_farmer'
+  },
+  agentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Farmer' // Agents share the Farmer model for simplicity
   },
   createdAt: {
     type: Date,

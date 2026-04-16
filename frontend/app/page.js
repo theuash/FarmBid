@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
+import FarmerAgentDashboard from '@/components/FarmerAgentDashboard'
 
 // Hooks
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -34,48 +35,52 @@ import {
   ArrowUpRight, ArrowDownRight, Send, Mic, Image as ImageIcon,
   Phone, MoreVertical, Check, Copy, Filter, RefreshCw, Truck,
   FileText, CreditCard, Building2, Star, Award, Zap, Globe, Lock,
-  LogOut, User, Fingerprint, Receipt, Handshake
+  LogOut, User, Fingerprint, Receipt, Handshake, PackageCheck
 } from 'lucide-react'
 
 // WhatsApp demo messages
 const whatsappMessages = {
   english: [
-    { type: 'bot', text: 'Welcome to FarmBid! I am your assistant. How can I help you today?' },
-    { type: 'bot', text: 'Reply with:\n1. Create new listing\n2. Check my listings\n3. View earnings\n4. Help' },
-    { type: 'user', text: '1' },
-    { type: 'bot', text: "Great! Let's create a new listing. Please send a photo of your produce." },
-    { type: 'user', text: '[Photo of tomatoes]', isImage: true },
-    { type: 'bot', text: 'Tomatoes! Quality looks Premium grade.\n\nWhat is the total weight (in kg)?' },
-    { type: 'user', text: '500 kg' },
-    { type: 'bot', text: 'Got it! 500 kg of Tomatoes.\n\nWhat is your minimum price per kg? (Current market: ₹30-40/kg)' },
-    { type: 'user', text: '32' },
-    { type: 'bot', text: 'Perfect! ₹32 per kg minimum.\n\nWhen was this harvested? (DD/MM or today)' },
-    { type: 'user', text: 'today' },
-    { type: 'bot', text: 'Your listing is being processed...\n\nSummary:\n- Tomatoes: 500 kg\n- Min Price: ₹32/kg\n- Total Value: ₹16,000+\n- Srinivaspur, Kolar\n\nAnchoring to blockchain...' },
-    { type: 'bot', text: 'Listing is LIVE!\n\nAuction ID: #KOL-2025-0628\nEnds in: 24 hours\n\nYou will receive updates when buyers bid.\n\nChain Hash: 0x8f9a...8f9a' }
+    { type: 'bot', text: 'Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें' },
+    { type: 'bot', text: 'Choose Language:', isInteractive: true, options: ['English', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'] },
+    { type: 'user', text: 'English' },
+    { type: 'bot', text: "Great! Let's create a new listing. What type of crop do you want to list?" },
+    { type: 'bot', text: 'Select Crop:', isInteractive: true, options: ['Tomatoes', 'Onions', 'Wheat'] },
+    { type: 'user', text: 'Tomatoes' },
+    { type: 'bot', text: 'Tomatoes selected.\n\nPlease enter your Base Price (minimum expected price) per kg.\n(Type the amount)' },
+    { type: 'user', text: '₹32' },
+    { type: 'bot', text: 'Summary:\n\nCrop: Tomatoes\nBase Price: ₹32/kg\n\nConfirm listing?' },
+    { type: 'bot', text: 'Confirm:', isInteractive: true, options: ['Yes, list it', 'Cancel'] },
+    { type: 'user', text: 'Yes, list it' },
+    { type: 'bot', text: 'Listing is LIVE!\n\nAuction ID: #KOL-2025\nEnds in: 24 hours\n\nYou will receive updates when buyers bid.' }
   ],
   hindi: [
-    { type: 'bot', text: 'FarmBid में आपका स्वागत है! मैं आपका सहायक हूं। आज मैं आपकी कैसे मदद कर सकता हूं?' },
-    { type: 'bot', text: 'जवाब दें:\n1. नई लिस्टिंग बनाएं\n2. मेरी लिस्टिंग देखें\n3. कमाई देखें\n4. मदद' },
-    { type: 'user', text: '1' },
-    { type: 'bot', text: "बहुत अच्छा! चलिए एक नई लिस्टिंग बनाते हैं। कृपया अपनी उपज की एक फोटो भेजें।" },
-    { type: 'user', text: '[टमाटर की फोटो]', isImage: true },
-    { type: 'bot', text: 'टमाटर! गुणवत्ता प्रीमियम स्तर की लग रही है।\n\nकुल वजन (किलोग्राम में) क्या है?' },
-    { type: 'user', text: '500 kg' },
-    { type: 'bot', text: 'समझ गया! 500 किलो टमाटर।\n\nप्रति किलो आपकी न्यूनतम कीमत क्या है? (वर्तमान बाजार: ₹30-40/kg)' },
-    { type: 'user', text: '32' },
-    { type: 'bot', text: 'बेहतरीन! ₹32 प्रति किलो न्यूनतम।\n\nइसकी कटाई कब हुई थी? (DD/MM या आज)' },
-    { type: 'user', text: 'आज' },
-    { type: 'bot', text: 'आपकी लिस्टिंग प्रोसेस की जा रही है...\n\nसारांश:\n- टमाटर: 500 kg\n- न्यूनतम मूल्य: ₹32/kg\n- कुल मूल्य: ₹16,000+\n- श्रीनिवासपुर, कोलार\n\nब्लॉकचेन पर एंकरिंग की जा रही है...' },
-    { type: 'bot', text: 'लिस्टिंग लाइव है!\n\nनीलामी ID: #KOL-2025-0628\nसमाप्ति: 24 घंटे में\n\nखरीदारों के बोली लगाने पर आपको अपडेट मिलते रहेंगे।\n\nचेन हैश: 0x8f9a...8f9a' }
+    { type: 'bot', text: 'Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें' },
+    { type: 'bot', text: 'Choose Language:', isInteractive: true, options: ['English', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'] },
+    { type: 'user', text: 'हिंदी (Hindi)' },
+    { type: 'bot', text: "बढ़िया! आइए एक नई लिस्टिंग बनाएं। आप किस प्रकार की फसल बेचना चाहते हैं?" },
+    { type: 'bot', text: 'फसल चुनें:', isInteractive: true, options: ['टमाटर', 'प्याज', 'गेहूं'] },
+    { type: 'user', text: 'टमाटर' },
+    { type: 'bot', text: 'टमाटर चुना गया।\n\nकृपया अपना आधार मूल्य (न्यूनतम अपेक्षित मूल्य) प्रति किलो दर्ज करें।\n(राशि टाइप करें)' },
+    { type: 'user', text: '₹32' },
+    { type: 'bot', text: 'सारांश:\n\nफसल: टमाटर\nआधार मूल्य: ₹32/kg\n\nक्या आप लिस्टिंग की पुष्टि करते हैं?' },
+    { type: 'bot', text: 'पुष्टि करें:', isInteractive: true, options: ['हाँ, लिस्ट करें', 'रद्द करें'] },
+    { type: 'user', text: 'हाँ, लिस्ट करें' },
+    { type: 'bot', text: 'लिस्टिंग लाइव है!\n\nनीलामी ID: #KOL-2025\n24 घंटे में समाप्त\n\nखरीदारों के बोली लगाने पर आपको अपडेट मिलेंगे।' }
   ],
   kannada: [
-    { type: 'bot', text: 'FarmBid à²—à³† à²¸à³à²µà²¾à²—à²¤! à²¨à²¾à²¨à³ à²¨à²¿à²®à³à²® à²¸à²¹à²¾à²¯à²•. à²‡à²‚à²¦à³ à²¨à²¾à²¨à³ à²¨à²¿à²®à²—à³† à²¹à³‡à²—à³† à²¸à²¹à²¾à²¯ à²®à²¾à²¡à²¬à²¹à³à²¦à³?' },
-    { type: 'bot', text: 'à²‰à²¤à³à²¤à²°à²¿à²¸à²¿:\n1ï¸âƒ£ à²¹à³Šà²¸ à²ªà²Ÿà³à²Ÿà²¿ à²°à²šà²¿à²¸à²¿\n2ï¸âƒ£ à²¨à²¨à³à²¨ à²ªà²Ÿà³à²Ÿà²¿à²—à²³à²¨à³à²¨à³ à²¨à³‹à²¡à²¿\n3ï¸âƒ£ à²—à²³à²¿à²•à³† à²¨à³‹à²¡à²¿\n4ï¸âƒ£ à²¸à²¹à²¾à²¯' },
-    { type: 'user', text: '1' },
-    { type: 'bot', text: 'à²…à²¦à³à²­à³à²¤! à²¹à³Šà²¸ à²ªà²Ÿà³à²Ÿà²¿ à²®à²¾à²¡à³‹à²£. à²¦à²¯à²µà²¿à²Ÿà³à²Ÿà³ à²¨à²¿à²®à³à²® à²‰à²¤à³à²ªà²¨à³à²¨à²¦ à²«à³‹à²Ÿà³‹ à²•à²³à²¿à²¸à²¿.' },
-    { type: 'user', text: '[à²Ÿà³Šà²®à³†à²Ÿà³Š à²«à³‹à²Ÿà³‹]', isImage: true },
-    { type: 'bot', text: 'ðŸ… à²¤à²¾à²œà²¾ à²Ÿà³Šà²®à³†à²Ÿà³Š à²•à²¾à²£à²¿à²¸à³à²¤à³à²¤à²¿à²¦à³†! à²—à³à²£à²®à²Ÿà³à²Ÿ à²ªà³à²°à³€à²®à²¿à²¯à²‚ à²†à²—à²¿à²¦à³†.\n\nà²’à²Ÿà³à²Ÿà³ à²¤à³‚à²• à²Žà²·à³à²Ÿà³ (à²•à³†à²œà²¿à²¯à²²à³à²²à²¿)?' }
+    { type: 'bot', text: 'Welcome to FarmBid! Please select your language / ದಯವಿಟ್ಟು ನಿಮ್ಮ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ / कृपया अपनी भाषा चुनें' },
+    { type: 'bot', text: 'Choose Language:', isInteractive: true, options: ['English', 'ಕನ್ನಡ (Kannada)', 'हिंदी (Hindi)'] },
+    { type: 'user', text: 'ಕನ್ನಡ (Kannada)' },
+    { type: 'bot', text: "ಉತ್ತಮ! ಹೊಸ ಪಟ್ಟಿಯನ್ನು ರಚಿಸೋಣ. ನೀವು ಯಾವ ರೀತಿಯ ಬೆಳೆಯನ್ನು ಮಾರಾಟ ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?" },
+    { type: 'bot', text: 'ಬೆಳೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ:', isInteractive: true, options: ['ಟೊಮ್ಯಾಟೊ', 'ಈರುಳ್ಳಿ', 'ಗೋಧಿ'] },
+    { type: 'user', text: 'ಟೊಮ್ಯಾಟೊ' },
+    { type: 'bot', text: 'ಟೊಮ್ಯಾಟೊ ಆಯ್ಕೆ ಮಾಡಲಾಗಿದೆ.\n\nದಯವಿಟ್ಟು ನಿಮ್ಮ ಮೂಲ ಬೆಲೆಯನ್ನು (ಕನಿಷ್ಠ ನಿರೀಕ್ಷಿತ ಬೆಲೆ) ಪ್ರತಿ ಕೆಜಿಗೆ ನಮೂದಿಸಿ.\n(ಮೊತ್ತವನ್ನು ಟೈಪ್ ಮಾಡಿ)' },
+    { type: 'user', text: '₹32' },
+    { type: 'bot', text: 'ಸಾರಾಂಶ:\n\nಬೆಳೆ: ಟೊಮ್ಯಾಟೊ\nಮೂಲ ಬೆಲೆ: ₹32/kg\n\nಪಟ್ಟಿಯನ್ನು ಖಚಿತಪಡಿಸುತ್ತೀರಾ?' },
+    { type: 'bot', text: 'ಖಚಿತಪಡಿಸಿ:', isInteractive: true, options: ['ಹೌದು, ಪಟ್ಟಿ ಮಾಡಿ', 'ರದ್ದುಮಾಡಿ'] },
+    { type: 'user', text: 'ಹೌದು, ಪಟ್ಟಿ ಮಾಡಿ' },
+    { type: 'bot', text: 'ಪಟ್ಟಿ ಸಕ್ರಿಯವಾಗಿದೆ!\n\nಹರಾಜು ID: #KOL-2025\n24 ಗಂಟೆಗಳಲ್ಲಿ ಕೊನೆಗೊಳ್ಳುತ್ತದೆ\n\nಖರೀದಿದಾರರು ಬಿಡ್ ಮಾಡಿದಾಗ ನಿಮಗೆ ಅಪ್ಡೇಟ್ ಸಿಗುತ್ತದೆ.' }
   ]
 }
 
@@ -103,8 +108,9 @@ const formatINR = (amount) => {
 const QualityRing = ({ value, size = 60 }) => {
   const radius = (size - 8) / 2
   const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference - (value / 100) * circumference
-  const color = value >= 85 ? '#16a34a' : value >= 70 ? '#ca8a04' : '#dc2626'
+  const val = Number(value) || 0
+  const strokeDashoffset = circumference - (val / 100) * circumference
+  const color = val >= 85 ? '#16a34a' : val >= 70 ? '#ca8a04' : '#dc2626'
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -138,25 +144,6 @@ const QualityRing = ({ value, size = 60 }) => {
   )
 }
 
-// Trust Score Badge
-const TrustBadge = ({ score }) => {
-  const color = score >= 90 ? 'bg-green-500' : score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger>
-          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-xs font-medium ${color}`}>
-            <Shield className="h-3 w-3" />
-            {score}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Trust Score: {score}/100</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
 
 // Countdown Timer Component
 const CountdownTimer = ({ endsAt, status }) => {
@@ -189,7 +176,7 @@ const CountdownTimer = ({ endsAt, status }) => {
 }
 
 // Auction Card Component
-const AuctionCard = ({ listing, onBid }) => {
+const AuctionCard = ({ listing, onBid, onRelease }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -204,8 +191,8 @@ const AuctionCard = ({ listing, onBid }) => {
             className="w-full h-40 object-cover"
           />
           <div className="absolute top-2 left-2 flex gap-1.5">
-            <Badge variant={listing.status === 'ending_soon' ? 'destructive' : 'default'} className="backdrop-blur-sm">
-              {listing.status === 'ending_soon' ? 'ðŸ”¥ Ending Soon' : listing.status === 'live' ? 'ðŸŸ¢ Live' : listing.status}
+            <Badge variant={listing.status === 'won' ? 'outline' : listing.status === 'ending_soon' ? 'destructive' : 'default'} className={`backdrop-blur-sm ${listing.status === 'won' ? 'border-amber-500 text-amber-500 bg-amber-500/10' : ''}`}>
+              {listing.status === 'won' ? '🏆 WON' : listing.status === 'ending_soon' ? '🔥 Ending Soon' : listing.status === 'live' ? '🟢 Live' : listing.status}
             </Badge>
           </div>
           <div className="absolute top-2 right-2 space-y-1">
@@ -228,7 +215,6 @@ const AuctionCard = ({ listing, onBid }) => {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span>{listing.produceIcon || 'ðŸŒ¾'}</span>
                 {listing.produce || 'Farm Produce'}
               </CardTitle>
               <CardDescription className="flex items-center gap-2 mt-1 text-sm">
@@ -242,7 +228,6 @@ const AuctionCard = ({ listing, onBid }) => {
                 </span>
               </CardDescription>
             </div>
-            <TrustBadge score={listing.farmerTrustScore || 60} />
           </div>
         </CardHeader>
 
@@ -277,6 +262,16 @@ const AuctionCard = ({ listing, onBid }) => {
               <p className="text-muted-foreground">Total Value</p>
               <p className="font-semibold text-amber-600">{formatINR((listing.currentBidPerKg || listing.minPricePerKg) * listing.quantity)}</p>
             </div>
+            {listing.highestBidderName && (
+              <div className="col-span-2 mt-1">
+                <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                  <User className="h-3 w-3" /> Highest Bidder
+                </p>
+                <Badge variant="secondary" className="bg-primary/5 text-primary border-primary/20 text-xs py-0 h-5">
+                  {listing.highestBidderName}
+                </Badge>
+              </div>
+            )}
           </div>
 
           {listing.harvestDate && (
@@ -296,11 +291,18 @@ const AuctionCard = ({ listing, onBid }) => {
           </div>
         </CardContent>
 
-        <CardFooter className="pt-0">
-          <Button className="w-full" onClick={() => onBid(listing)}>
-            <Gavel className="h-4 w-4 mr-2" />
-            Place Bid
-          </Button>
+        <CardFooter className="pt-0 flex flex-col gap-2">
+          {listing.status === 'won' || listing.status === 'ended' ? (
+            <Button className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20" onClick={() => onRelease && onRelease(listing.id || listing._id)}>
+              <PackageCheck className="h-4 w-4 mr-2" />
+              Confirm Delivery
+            </Button>
+          ) : (
+            <Button className="w-full" onClick={() => onBid(listing)}>
+              <Gavel className="h-4 w-4 mr-2" />
+              Place Bid
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </motion.div>
@@ -381,6 +383,17 @@ const WhatsAppChat = ({ language }) => {
                     alt="Produce"
                     className="w-48 h-32 object-cover rounded"
                   />
+                ) : msg.isInteractive ? (
+                  <div className="flex flex-col w-full min-w-[200px]">
+                    <p className="text-sm whitespace-pre-line mb-2">{msg.text}</p>
+                    <div className="flex flex-col border-t border-gray-200 dark:border-zinc-700 pt-1">
+                      {msg.options.map((opt, i) => (
+                        <div key={i} className="text-[#00a884] dark:text-[#00a884] font-medium text-sm text-center py-2.5 border-b border-gray-200 dark:border-zinc-700 last:border-0 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors">
+                          {opt}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-sm whitespace-pre-line">{msg.text}</p>
                 )}
@@ -537,7 +550,7 @@ const KPICard = ({ title, value, icon: Icon, trend: defaultTrend, trendUp: defau
 }
 
 // Bid Dialog
-const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
+const BidDialog = ({ listing, isOpen, onClose, onSubmit, walletBalance }) => {
   const [bidAmount, setBidAmount] = useState('')
   if (!listing) return null
   const minBid = listing.currentBidPerKg + 1
@@ -553,7 +566,6 @@ const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span>{listing.produceIcon}</span>
             Place Bid - {listing.produce}
           </DialogTitle>
           <DialogDescription>From {listing.farmerName} ({listing.farmerCode})</DialogDescription>
@@ -574,32 +586,41 @@ const BidDialog = ({ listing, isOpen, onClose, onSubmit }) => {
             <p className="text-xs text-muted-foreground">Minimum bid: {formatINR(minBid)}/kg</p>
           </div>
           {bidAmount >= minBid && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-              <div className="flex justify-between items-center"><span className="text-sm">Total Lot Value</span><span className="text-xl font-bold text-primary">{formatINR(totalValue)}</span></div>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 rounded-lg border ${totalValue > walletBalance ? 'bg-destructive/10 border-destructive/20' : 'bg-primary/10 border-primary/20'}`}>
+              <div className="flex justify-between items-center"><span className="text-sm">Total Lot Value</span><span className={`text-xl font-bold ${totalValue > walletBalance ? 'text-destructive' : 'text-primary'}`}>{formatINR(totalValue)}</span></div>
+              {totalValue > walletBalance && (
+                <p className="text-[10px] text-destructive mt-1 flex items-center gap-1 font-bold italic">
+                  <AlertTriangle className="h-3 w-3" /> Insufficient balance! Please top up your wallet.
+                </p>
+              )}
             </motion.div>
           )}
         </div>
-        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleSubmit} disabled={!bidAmount || bidAmount < minBid}><Gavel className="h-4 w-4 mr-2" />Place Bid</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={handleSubmit} disabled={!bidAmount || bidAmount < minBid || totalValue > walletBalance}><Gavel className="h-4 w-4 mr-2" />Place Bid</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
+const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId, userPhone, userEmail }) => {
   const isMobile = useIsMobile()
-  const [method, setMethod] = useState('phonepe')
+  const [method, setMethod] = useState('razorpay')
   const [paymentPhase, setPaymentPhase] = useState('select')
   const [isVerifying, setIsVerifying] = useState(false)
   const [upiUri, setUpiUri] = useState('')
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+  const [newBalanceAfterPayment, setNewBalanceAfterPayment] = useState(0)
+  const [initialBalance, setInitialBalance] = useState(0)
+  const API_URL = typeof window !== 'undefined' 
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3001/api' 
+        : `http://${window.location.hostname}:3001/api`)
+    : 'http://localhost:3001/api'
 
+  const upiId = process.env.NEXT_PUBLIC_UPI_ID || '9019808476-2@axl'
   const txRef = useMemo(() => `FB${Date.now()}${Math.floor(Math.random() * 1000)}`, [isOpen])
 
   const methods = [
-    { id: 'phonepe', name: 'PhonePe', isImage: true, imgSrc: 'https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg' },
-    { id: 'gpay', name: 'Google Pay', isImage: true, imgSrc: 'https://pay.google.com/about/static_kcs/images/logos/google-pay-logo.png' },
-    { id: 'razorpay', name: 'Razorpay', isImage: true, imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' },
-    { id: 'card', name: 'Credit Card', icon: <CreditCard className="h-6 w-6" />, isImage: false },
+    { id: 'razorpay', name: 'Secure Razorpay Checkout', isImage: true, imgSrc: 'https://razorpay.com/assets/razorpay-logo.svg' },
   ]
 
   // Auto-confirm when user returns from payment app
@@ -616,23 +637,120 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [paymentPhase, isVerifying])
 
-  const generateUpiUri = (amt) => {
-    const formattedAmount = Number(amt).toFixed(2)
+  const generateUpiUri = (amount) => {
+    const formattedAmount = Number(amount).toFixed(2);
+    // Extremely simplified URI for maximum compatibility (some apps reject long TRs or custom Notes)
     const params = [
-      `pa=8618118952@axl`,
+      `pa=9019808476-2@ybl`,
       `pn=${encodeURIComponent('FarmBid')}`,
       `am=${formattedAmount}`,
-      `cu=INR`,
-      `tn=${encodeURIComponent(`Deposit_${txRef.slice(-6)}`)}`
+      `cu=INR`
     ].join('&')
     return `upi://pay?${params}`
   }
 
-  const handleRazorpay = () => {
-    // Open the live Razorpay payment page safely in a new tab
-    window.open('https://razorpay.me/@sachin2844', '_blank')
-    toast.info('Opening Razorpay Payment Page...')
-    setPaymentPhase('processing')
+    // Advanced Sanitization for Razorpay (Targeting 10-digit Indian Mobile)
+    const sanitizedPhone = useMemo(() => {
+      let cleaned = (userPhone || '').replace(/[^0-9]/g, '');
+      // If it has country code 91, strip it to leave 10 digits
+      if (cleaned.length >= 12 && cleaned.startsWith('91')) return cleaned.slice(-10);
+      if (cleaned.length === 11 && cleaned.startsWith('0')) return cleaned.slice(1);
+      return cleaned.slice(-10); // Standard 10 digits
+    }, [userPhone]);
+
+    const handleRazorpay = async () => {
+    // Force grab fresh data from localStorage as a fail-safe
+    const rawUser = localStorage.getItem('farmbid_user');
+    const user = rawUser ? JSON.parse(rawUser) : {};
+    const contactNum = sanitizedPhone || (user.phone || '').replace(/[^0-9]/g, '').slice(-10);
+    const emailAddr = userEmail || user.email || '';
+
+    if (!amount || amount <= 0) return toast.error('Please enter a valid amount');
+    setIsVerifying(true);
+    try {
+      const token = localStorage.getItem('farmbid_token');
+      const res = await fetch(`${API_URL}/payments/create-order`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount })
+      });
+      const data = await res.json();
+      console.log('Razorpay Order Created:', data);
+      if (!data.success) {
+        setIsVerifying(false);
+        console.error('Razorpay initiation failed:', data);
+        return toast.error(`Initiation failed: ${data.message || data.error || 'Server error'}`);
+      }
+
+      if (window.Razorpay) {
+        openCheckout();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = openCheckout;
+      document.body.appendChild(script);
+
+      function openCheckout() {
+        onClose(); // Close the shadcn Dialog to prevent focus trap blocking Razorpay
+        console.log('Opening Razorpay Checkout for Order:', data.orderId);
+        const rzp = new window.Razorpay({
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_SZlp7uSKnjrnRE',
+          amount: amount * 100,
+          currency: 'INR',
+          name: 'FarmBid',
+          description: `Wallet Top-up: ₹${amount}`,
+          order_id: data.orderId,
+          handler: async (resp) => {
+            try {
+              const token = localStorage.getItem('farmbid_token');
+              const vres = await fetch(`${API_URL}/payments/verify-payment`, {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ 
+                  amount, 
+                  razorpay_order_id: resp.razorpay_order_id, 
+                  razorpay_payment_id: resp.razorpay_payment_id, 
+                  razorpay_signature: resp.razorpay_signature 
+                })
+              });
+              const vdata = await vres.json();
+              if (vdata.success) {
+                setNewBalanceAfterPayment(vdata.balance);
+                setPaymentPhase('success');
+                onConfirm(vdata.balance);
+              } else {
+                toast.error('Verification failed: ' + (vdata.message || 'Unknown error'));
+              }
+            } catch (e) {
+              toast.error('Server connection error during verification.');
+            } finally {
+              setIsVerifying(false);
+            }
+          },
+          modal: { ondismiss: () => setIsVerifying(false), escape: false },
+          prefill: { 
+            name: user.name || 'FarmBid User',
+            contact: contactNum,
+            email: emailAddr
+          },
+          theme: { color: '#16a34a' }
+        });
+        rzp.open();
+      };
+      document.body.appendChild(script);
+    } catch (e) {
+      toast.error('Error starting payment process.');
+      setIsVerifying(false);
+    }
   }
 
   const handlePayClick = () => {
@@ -677,7 +795,6 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          userId,
           amount,
           paymentMethod: method,
           referenceId: txRef
@@ -685,8 +802,9 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
       })
       const data = await response.json()
       if (data.success) {
+        setNewBalanceAfterPayment(data.newBalance);
+        setPaymentPhase('success');
         onConfirm(data.newBalance)
-        setPaymentPhase('success')
       } else {
         toast.error(data.error || 'Failed to update wallet balance')
         hasPaid.current = false // Allow retry
@@ -698,6 +816,39 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
       setIsVerifying(false)
     }
   }
+
+  // UPI Polling for "Auto Redirect"
+  useEffect(() => {
+    let interval;
+    if (isOpen && paymentPhase === 'scanner' && userId) {
+      // First, get initial balance if not set
+      const fetchInitial = async () => {
+        try {
+          const res = await fetch(`${API_URL}/stats/buyer/${userId}`);
+          const data = await res.json();
+          if (data.success) {
+            setInitialBalance(data.stats.walletBalance);
+          }
+        } catch (e) {}
+      };
+      
+      if (initialBalance === 0) fetchInitial();
+
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_URL}/stats/buyer/${userId}`);
+          const data = await res.json();
+          if (data.success && data.stats.walletBalance > initialBalance) {
+            setNewBalanceAfterPayment(data.stats.walletBalance);
+            setPaymentPhase('success');
+            onConfirm(data.stats.walletBalance);
+            clearInterval(interval);
+          }
+        } catch (e) {}
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isOpen, paymentPhase, userId, initialBalance]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && !isVerifying && paymentPhase !== 'success' && onClose()}>
@@ -719,7 +870,7 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
 
         <div className="py-4">
           {paymentPhase === 'select' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid ${methods.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
               {methods.map((m) => (
                 <div
                   key={m.id}
@@ -738,7 +889,7 @@ const PaymentDialog = ({ isOpen, onClose, amount, onConfirm, userId }) => {
           {paymentPhase === 'scanner' && (
             <div className="flex flex-col items-center justify-center space-y-4 py-4">
               <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-primary/20">
-                <QRCodeSVG value={upiUri} size={220} level="H" includeMargin={true} />
+                <img src="/sachin-qr.jpg" alt="Scan to Pay via PhonePe" className="w-[220px] rounded object-contain" />
               </div>
               <div className="text-center space-y-1">
                 <Badge variant="outline" className="animate-pulse">
@@ -839,6 +990,13 @@ export default function App() {
   const [topupAmount, setTopupAmount] = useState('')
   const [topupLoading, setTopupLoading] = useState(false)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+  
+  // Real Dashboard Stats
+  const [dashboardStats, setDashboardStats] = useState({
+    activeBids: 0,
+    wonAuctions: 0,
+    totalSaved: 0
+  });
   
   // Authentication state
   const [currentUser, setCurrentUser] = useState(null)
@@ -1056,23 +1214,25 @@ export default function App() {
         toast.success('Bid placed successfully!', {
           description: `Your bid of ${formatINR(bidAmount)}/kg has been anchored to blockchain.`
         })
-        console.log(`[BidSubmit] Success! Updating listing ${listingId} locally to ₹${bidAmount}`);
-        // Update listings
-        setListings(prev => {
-          const matched = prev.find(l => String(l.id) === String(listingId));
-          if (!matched) {
-            console.warn(`[BidSubmit] Warning: Could not find listing ${listingId} in local state to update UI!`);
-          }
-          return prev.map(l =>
-            String(l.id) === String(listingId)
-              ? { ...l, currentBidPerKg: bidAmount, totalBids: (Number(l.totalBids) || 0) + 1, isUpdating: true }
-              : l
-          );
-        });
-        // Add blockchain event
+        
+        // Update listings locally with data from server if available
+        setListings(prev => prev.map(l =>
+          String(l.id) === String(listingId)
+            ? { 
+                ...l, 
+                currentBidPerKg: bidAmount, 
+                totalBids: (Number(l.totalBids) || 0) + 1, 
+                highestBidderName: currentUser.name,
+                isUpdating: true 
+              }
+            : l
+        ));
+
         if (data.blockchainEvent) {
           setBlockchainEvents(prev => [data.blockchainEvent, ...prev])
         }
+      } else {
+        toast.error(data.error || 'Failed to place bid');
       }
     } catch (error) {
       toast.error('Failed to place bid')
@@ -1206,6 +1366,35 @@ export default function App() {
     </button>
   )
 
+  // If farmer or agent, show their dedicated dashboard
+  if (isAuthenticated && currentUser && (currentUser.role === 'farmer' || currentUser.role === 'agent')) {
+    return (
+      <TooltipProvider>
+        <div className={`min-h-screen bg-background ${darkMode ? 'dark' : ''}`}>
+          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex h-16 items-center px-6 justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-primary p-1.5 rounded-lg">
+                  <Leaf className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="font-bold text-xl">FarmBid</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="hidden md:block text-right">
+                  <p className="text-sm font-bold">{currentUser.name}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={handleLogout} className="text-muted-foreground hover:bg-muted rounded-full">
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </header>
+          <FarmerAgentDashboard user={currentUser} />
+        </div>
+      </TooltipProvider>
+    )
+  }
+
   return (
     <TooltipProvider>
       <div className={`min-h-screen bg-background ${darkMode ? 'dark' : ''}`}>
@@ -1287,18 +1476,13 @@ export default function App() {
               <NavItem icon={Wallet} label="Wallet" view="wallet" />
               <NavItem icon={AlertTriangle} label="Disputes" view="disputes" badge="0" />
 
-              {/* Demo Modes - Only show for demo users */}
-              {currentUser?.isDemo && (
-                <>
-                  <Separator className="my-3" />
+              <Separator className="my-3" />
 
-                  <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
-                    Demo Modes
-                  </p>
-                  <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
-                  <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
-                </>
-              )}
+              <p className={`px-3 py-2 text-xs font-semibold text-muted-foreground uppercase ${!sidebarOpen && 'hidden'}`}>
+                Platform Features
+              </p>
+              <NavItem icon={Sparkles} label="Quality Lab" view="quality" />
+              <NavItem icon={Link2} label="Blockchain Ledger" view="blockchain" />
 
               <Separator className="my-3" />
 
@@ -1306,7 +1490,7 @@ export default function App() {
                 Admin
               </p>
               <NavItem icon={BarChart3} label="Admin Dashboard" view="admin" />
-              <NavItem icon={Users} label="Farmers" view="farmers" />
+              <NavItem icon={Users} label="Agents" view="farmers" />
               <NavItem icon={AlertTriangle} label="Fraud Monitor" view="fraud" />
             </nav>
           </aside>
@@ -1332,7 +1516,7 @@ export default function App() {
                             Welcome{currentUser ? `, ${currentUser.name?.split(' ')[0]}` : ''}!
                           </h1>
                           <p className="text-muted-foreground max-w-lg">
-                            Farmers set the floor. Buyers bid upward. Every transaction anchored to blockchain.
+                            Direct from source. Buyers bid upward. Every transaction anchored to blockchain.
                           </p>
                           {currentUser?.did && (
                             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full w-fit">
@@ -1362,10 +1546,10 @@ export default function App() {
 
                   {/* Quick Stats */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend="+₹0 today" />
-                    <KPICard title="Active Bids" value="0" icon={Gavel} trend="0 leading" />
-                    <KPICard title="Won Auctions" value="0" icon={Award} trend="+0 this week" />
-                    <KPICard title="Total Saved" value="₹0" icon={TrendingUp} trend="+0% vs mandi rates" />
+                    <KPICard title="Wallet Balance" value={formatINR(walletBalance)} icon={Wallet} trend={walletBalance === 0 ? "Empty" : "Secure"} />
+                    <KPICard title="Active Bids" value={dashboardStats.activeBids} icon={Gavel} trend={`${dashboardStats.activeBids} active`} />
+                    <KPICard title="Won Auctions" value={dashboardStats.wonAuctions} icon={Award} trend={`${dashboardStats.wonAuctions} this week`} />
+                    <KPICard title="Total Saved" value={formatINR(dashboardStats.totalSaved)} icon={TrendingUp} trend="estimated" />
                   </div>
 
                   {/* Featured Auctions */}
@@ -1417,7 +1601,7 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h1 className="text-2xl font-bold">Live Auctions</h1>
-                      <p className="text-muted-foreground">Bid on fresh produce directly from Karnataka farmers</p>
+                      <p className="text-muted-foreground">Bid on fresh produce directly from verified sources</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1439,7 +1623,7 @@ export default function App() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredListings.map(listing => (
-                      <AuctionCard key={listing.id} listing={listing} onBid={handleBid} />
+                      <AuctionCard key={listing.id} listing={listing} onBid={handleBid} onRelease={handleEscrowRelease} />
                     ))}
                   </div>
                 </motion.div>
@@ -1731,7 +1915,7 @@ export default function App() {
                   {/* KPI Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <KPICard title="Total GMV" value="₹0" icon={IndianRupee} trend="+0% this week" trendUp />
-                    <KPICard title="Active Farmers" value="0" icon={Users} trend="+0 this week" trendUp />
+                    <KPICard title="Active Agents" value="0" icon={Users} trend="+0 this week" trendUp />
                     <KPICard title="Active Auctions" value="0" icon={Gavel} />
                     <KPICard title="Success Rate" value="0%" icon={CheckCircle2} trend="+0%" trendUp />
                   </div>
@@ -1750,9 +1934,9 @@ export default function App() {
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto text-center py-8">
-                        <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">ðŸ“Š</div>
+                        <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-20" />
                         <p className="text-muted-foreground font-medium">No activity to display</p>
-                        <p className="text-sm text-muted-foreground opacity-70">Farmer details will populate here once active.</p>
+                        <p className="text-sm text-muted-foreground opacity-70">Agent details will populate here once active.</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -1778,7 +1962,7 @@ export default function App() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3 text-center py-8">
-                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">âœ…</div>
+                          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-500 opacity-20" />
                           <p className="text-muted-foreground font-medium">No actions required</p>
                           <p className="text-sm text-muted-foreground opacity-70">You have 0 disputes and 0 pending verifications.</p>
                         </div>
@@ -1957,16 +2141,16 @@ export default function App() {
                   exit={{ opacity: 0 }}
                   className="space-y-6"
                 >
-                  <h1 className="text-2xl font-bold">Registered Farmers</h1>
+                  <h1 className="text-2xl font-bold">Registered Agents</h1>
 
                   <Card>
                     <CardContent className="py-12">
                       <div className="text-center">
                         <Users className="h-12 w-12 text-muted-foreground opacity-20 mx-auto mb-3" />
-                        <h3 className="text-xl font-semibold mb-2">No Registered Farmers</h3>
+                        <h3 className="text-xl font-semibold mb-2">No Registered Agents</h3>
                         <p className="text-muted-foreground">
-                          There are currently no farmers registered on the platform. 
-                          Farmer profiles and details will appear here once they complete the onboarding process.
+                          There are currently no agents registered on the platform. 
+                          Agent profiles and details will appear here once they complete the onboarding process.
                         </p>
                       </div>
                     </CardContent>
@@ -2008,7 +2192,7 @@ export default function App() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="text-center py-8">
-                          <div className="text-4xl mb-3 opacity-20 hover:opacity-40 transition-opacity">âœ…</div>
+                          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-green-500 opacity-20" />
                           <p className="text-muted-foreground font-medium">No active alerts</p>
                           <p className="text-sm text-muted-foreground opacity-70">Fraud monitoring is active and clear.</p>
                         </div>
@@ -2055,6 +2239,7 @@ export default function App() {
           isOpen={bidDialogOpen}
           onClose={() => setBidDialogOpen(false)}
           onSubmit={handleSubmitBid}
+          walletBalance={walletBalance}
         />
 
         {/* Payment Dialog */}
@@ -2064,7 +2249,8 @@ export default function App() {
           amount={parseFloat(topupAmount)}
           onConfirm={handlePaymentConfirm}
           userId={currentUser?.id}
-          initialPhase="scanner"
+          userPhone={currentUser?.phone}
+          userEmail={currentUser?.email}
         />
       </div>
     </TooltipProvider>

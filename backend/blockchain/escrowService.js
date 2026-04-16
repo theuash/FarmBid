@@ -108,18 +108,20 @@ async function penalizeBuyer(orderId) {
 async function getOrderStatus(orderId) {
   try {
     initBlockchain(); // ensure it's initialized if called right away
-    const order = await contractWithPlatform.getOrder(orderId);
+    const order = await contractWithPlatform.orders(orderId);
     
-    const statusMap = ["NONE", "AWAITING_DELIVERY", "COMPLETE", "FARMER_PENALIZED", "BUYER_PENALIZED"];
+    // orders returns an array-like object or proxy where totalAmount, farmer, etc are accessible
     
     return { 
       success: true, 
       data: {
-        buyer: order.buyer,
-        farmer: order.farmer,
-        amount: ethers.formatEther(order.amount),
-        lockedAt: Number(order.lockedAt),
-        status: statusMap[Number(order.status)]
+        amount: ethers.formatEther(order[0]), // order.totalAmount
+        farmer: order[1], // order.farmer
+        transporter: order[2], // order.transporter
+        buyer: order[3], // order.buyer
+        deliveryConfirmed: order[4],
+        escrowReleased: order[5],
+        status: order[5] ? "COMPLETE" : (order[4] ? "AWAITING_RELEASE" : "LOCKED")
       }
     };
   } catch (error) {

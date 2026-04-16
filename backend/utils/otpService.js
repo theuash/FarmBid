@@ -1,13 +1,11 @@
 /**
- * OTP Service using Fast2SMS
+ * OTP Service using WhatsApp
  * Handles OTP generation, sending, and verification
  */
 
-const axios = require('axios');
+const { sendWhatsAppMessage, isReady } = require('./whatsapp');
 const crypto = require('crypto');
 
-const FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY;
-const FAST2SMS_BASE_URL = 'https://www.fast2sms.com/dev/bulkV2';
 const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES || '5');
 const OTP_LENGTH = 6;
 
@@ -22,14 +20,19 @@ const generateOTP = () => {
 };
 
 /**
- * Send OTP via Fast2SMS
+ * Send OTP via WhatsApp
  * @param {string} phoneNumber - Phone number with country code (e.g., +91XXXXXXXXXX)
  * @param {string} otp - OTP code to send
  * @returns {Promise<boolean>} - Success status
  */
 const sendOTP = async (phoneNumber, otp) => {
-  if (!FAST2SMS_API_KEY) {
-    console.error('[OTP] Fast2SMS API key not configured');
+  // For development/testing, log OTP to console AND send via WhatsApp
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[OTP] DEVELOPMENT MODE: OTP for ${phoneNumber} is ${otp}`);
+  }
+
+  if (!isReady()) {
+    console.error('[OTP] WhatsApp client is not ready');
     return false;
   }
 
@@ -43,40 +46,12 @@ const sendOTP = async (phoneNumber, otp) => {
 
     const message = `Your FarmBid OTP is ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this OTP. Team FarmBid`;
 
-    const response = await axios.post(
-      FAST2SMS_BASE_URL,
-      {
-        route: 'otp',
-        contacts: normalizedPhone,
-        var_name: 'otp_name',
-        otp_value: otp,
-        templates: 'farmbid_otp'
-      },
-      {
-        headers: {
-          authorization: FAST2SMS_API_KEY,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        params: {
-          authorization: FAST2SMS_API_KEY,
-          route: 'otp',
-          contacts: normalizedPhone,
-          var_name: 'otp_name',
-          otp_value: otp,
-          templates: 'farmbid_otp'
-        }
-      }
-    );
+    await sendWhatsAppMessage({ to: normalizedPhone, body: message });
 
-    if (response.data.return === true) {
-      console.log(`[OTP] Sent to ${normalizedPhone}`);
-      return true;
-    } else {
-      console.error('[OTP] Fast2SMS error:', response.data);
-      return false;
-    }
+    console.log(`[OTP] Sent to ${normalizedPhone}`);
+    return true;
   } catch (error) {
-    console.error('[OTP] Fast2SMS API error:', error.message);
+    console.error('[OTP] WhatsApp send error:', error.message);
     return false;
   }
 };
@@ -88,42 +63,42 @@ const sendOTP = async (phoneNumber, otp) => {
  * @returns {Promise<boolean>}
  */
 const sendSMS = async (phoneNumber, message) => {
-  if (!FAST2SMS_API_KEY) {
-    console.error('[SMS] Fast2SMS API key not configured');
+  if (!isReady()) {
+    console.error('[SMS] WhatsApp client is not ready');
     return false;
   }
 
   try {
+    // Strict 10-digit normalization for Indian numbers (remove 91 prefix)
     let normalizedPhone = phoneNumber.replace(/\D/g, '');
-    if (!normalizedPhone.startsWith('91') && normalizedPhone.length === 10) {
-      normalizedPhone = '91' + normalizedPhone;
+    if (normalizedPhone.startsWith('91') && normalizedPhone.length === 12) {
+      normalizedPhone = normalizedPhone.substring(2);
     }
 
-    const response = await axios.post(
-      FAST2SMS_BASE_URL,
-      null,
-      {
-        headers: {
-          authorization: FAST2SMS_API_KEY
-        },
-        params: {
-          authorization: FAST2SMS_API_KEY,
-          route: 'q',
-          message: message,
-          numbers: normalizedPhone
-        }
+    const response = await axios.get(FAST2SMS_BASE_URL, {
+      params: {
+        authorization: FAST2SMS_API_KEY,
+        route: 'q',
+        message: message,
+        language: 'english',
+        flash: 0,
+        numbers: normalizedPhone
       }
-    );
+    });
 
     if (response.data.return === true) {
       console.log(`[SMS] Sent to ${normalizedPhone}`);
       return true;
     } else {
-      console.error('[SMS] Fast2SMS error:', response.data);
+      console.error('[SMS] Fast2SMS error response:', response.data);
       return false;
     }
   } catch (error) {
-    console.error('[SMS] Fast2SMS API error:', error.message);
+    if (error.response) {
+      console.error('[SMS] Fast2SMS API error response:', error.response.data);
+    } else {
+      console.error('[SMS] Fast2SMS API error:', error.message);
+    }
     return false;
   }
 };
@@ -176,8 +151,8 @@ const verifyOTP = (phoneNumber, inputOTP) => {
   } else {
     storedData.attempts += 1;
     const remaining = storedData.maxAttempts - storedData.attempts;
-    return { 
-      valid: false, 
+    return {
+      valid: false,
       message: `Invalid OTP. ${remaining} attempts remaining.`,
       attemptsRemaining: remaining
     };
@@ -207,8 +182,9 @@ const generateAndSendOTP = async (phoneNumber) => {
       storeOTP(phoneNumber, otp);
       return {
         success: true,
-        message: 'OTP sent successfully to your phone.',
-        expiryMinutes: OTP_EXPIRY_MINUTES
+        message: 'OTP sent successfully via WhatsApp.',
+        expiryMinutes: OTP_EXPIRY_MINUTES,
+        otp
       };
     } else {
       return {

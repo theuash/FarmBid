@@ -25,6 +25,7 @@ const paymentsRouter = require('./routes/paymentRoutes');
 const ordersRouter = require('./routes/orders');
 const escrowRouter = require('./routes/escrow');
 const authRouter = require('./routes/auth');
+const statsRouter = require('./routes/stats');
 
 // Initialize express app
 const app = express();
@@ -35,6 +36,9 @@ connectDB().catch(err => {
   console.log('⚠️  Running without MongoDB:', err.message);
 });
 
+// Initialize WhatsApp client
+require('./utils/whatsapp');
+
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -42,8 +46,8 @@ app.use(helmet({
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : '*',
-  credentials: true,
+  origin: process.env.CORS_ORIGINS === '*' ? '*' : (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : '*'),
+  credentials: false,
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
@@ -83,6 +87,7 @@ app.use('/api/payments', paymentsRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/escrow', escrowRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/stats', statsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

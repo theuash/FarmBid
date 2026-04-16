@@ -8,7 +8,7 @@ const Auction = require('../models/Auction');
 router.get('/', async (req, res, next) => {
   try {
     const buyersResult = await Buyer.find()
-      .sort({ trustScore: -1 })
+      .sort({ createdAt: -1 })
       .lean();
     
     const buyers = buyersResult.map(b => ({ id: b._id, ...b }));
@@ -104,7 +104,6 @@ router.get('/stats/summary', async (req, res, next) => {
         $group: {
           _id: null,
           totalBuyers: { $sum: 1 },
-          avgTrustScore: { $avg: '$trustScore' },
           totalBids: { $sum: '$totalBids' },
           avgWalletBalance: { $avg: '$walletBalance' },
           topBuyer: { $max: '$walletBalance' }
@@ -123,7 +122,7 @@ router.get('/stats/summary', async (req, res, next) => {
 
     res.json({
       success: true,
-      summary: stats[0] || { totalBuyers: 0, avgTrustScore: 0, totalBids: 0, avgWalletBalance: 0, topBuyer: 0 },
+      summary: stats[0] || { totalBuyers: 0, totalBids: 0, avgWalletBalance: 0, topBuyer: 0 },
       byType
     });
   } catch (error) {

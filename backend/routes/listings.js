@@ -26,7 +26,7 @@ router.get('/', async (req, res, next) => {
     await updateAuctionStatusForListings(Listing);
 
     const listings = await Listing.find(query)
-      .populate('farmerId', 'code name trustScore')
+      .populate('farmerId', 'code name')
       .sort({ auctionEndsAt: 1 })
       .lean();
 
@@ -48,11 +48,10 @@ router.get('/', async (req, res, next) => {
       ...updateAuctionStatus(listing.auctionEndsAt),
       farmerId: listing.farmerId?._id?.toString(),
       farmerCode: listing.farmerCode,
-      farmerName: listing.farmerName,
-      farmerTrustScore: listing.farmerId?.trustScore
+      farmerName: listing.farmerName
     }));
 
-    const inMemoryListings = Array.from(listingStore.values())
+    const inMemoryListings = listingStore && typeof listingStore.values === 'function' ? Array.from(listingStore.values()) : []
       .filter(listing => listing && listing.status)
       .filter(listing => {
         // Exclude memory listings if a DB listing already has the same listingId/farmer
@@ -98,19 +97,38 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// GET /api/listings/farmer/:farmerId - Get listings for a specific farmer
+router.get('/farmer/:farmerId', async (req, res, next) => {
+  try {
+    const listings = await Listing.find({ farmerId: req.params.farmerId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const dbListings = listings.map(listing => ({
+      id: listing._id.toString(),
+      ...listing,
+      ...updateAuctionStatus(listing.auctionEndsAt)
+    }));
+
+    res.json({ success: true, listings: dbListings });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/listings/:id - Get specific listing with bids
 router.get('/:id', async (req, res, next) => {
   try {
     const listing = await Listing.findById(req.params.id)
-      .populate('farmerId', 'code name trustScore village district');
+      .populate('farmerId', 'code name village district');
 
     let listingResult = listing;
     let isInMemory = false;
 
     if (!listing) {
-      const inMemoryListing = Array.from(listingStore.values()).find(
-        (item) => item.id === req.params.id || item.listingId === req.params.id
-      );
+      const inMemoryListing = (listingStore && typeof listingStore.values === 'function') 
+        ? Array.from(listingStore.values()).find(item => item.id === req.params.id || item.listingId === req.params.id)
+        : null;
       if (inMemoryListing) {
         isInMemory = true;
         listingResult = inMemoryListing;
@@ -190,7 +208,9 @@ router.post('/', handleValidationErrors, listingValidation, async (req, res, nex
       qualityIndex,
       freshness,
       surfaceDamage,
-      colorUniformity
+      colorUniformity,
+      auctionEndsAt: requestedEndsAt,
+      farmerName: requestFarmerName,
     } = req.body;
 
     // Verify farmer exists
@@ -207,15 +227,16 @@ router.post('/', handleValidationErrors, listingValidation, async (req, res, nex
     if (qualityIndex >= 90) qualityGrade = 'Premium';
     else if (qualityIndex < 65) qualityGrade = 'At Risk';
 
-    // Calculate auction end time (24 hours from now)
-    const auctionEndsAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Use requested auction end time or default to 24 hours
+    const auctionEndsAt = requestedEndsAt
+      ? new Date(requestedEndsAt)
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     // Create listing
     const listing = new Listing({
       farmerId: farmer._id,
       farmerCode: farmer.code,
-      farmerName: farmer.name,
-      farmerTrustScore: farmer.trustScore,
+      farmerName: requestFarmerName || farmer.name,
       produce,
       quantity,
       minPricePerKg,
@@ -226,12 +247,13 @@ router.post('/', handleValidationErrors, listingValidation, async (req, res, nex
       auctionEndsAt,
       qualityIndex: qualityIndex || 85,
       freshness: freshness || 85,
-      surfaceDamage: surfaceDamage || 10,
       colorUniformity: colorUniformity || 85,
       qualityGrade,
       status: 'live',
       location,
-      pincode
+      pincode,
+      source: req.body.source || 'web_farmer',
+      agentId: req.body.agentId || null
     });
 
     await listing.save();
@@ -282,19 +304,49 @@ router.post('/', handleValidationErrors, listingValidation, async (req, res, nex
 async function updateAuctionStatusForListings(ListingModel) {
   try {
     const now = new Date();
+    const { createAuctionFromListing } = require('./auctions');
 
-    // Update ended auctions
-    await ListingModel.updateMany(
-      { auctionEndsAt: { $lte: now }, status: { $ne: 'ended' } },
-      { $set: { status: 'ended' } }
-    );
+    // Find listings that have ended but haven't been processed yet
+    const endedListings = await ListingModel.find({
+      auctionEndsAt: { $lte: now },
+      status: { $nin: ['ended', 'won', 'settled'] }
+    });
+
+    for (const listing of endedListings) {
+      if (listing.totalBids > 0) {
+        // Find the winning bid (highest price per kg)
+        const winningBid = await Bid.findOne({ listingId: listing._id })
+          .sort({ bidPerKg: -1, timestamp: 1 });
+
+        if (winningBid) {
+          console.log(`[AuctionCycle] Finalizing listing ${listing._id} (${listing.produce}). Winner: ${winningBid.buyerName}`);
+          
+          try {
+            await createAuctionFromListing(listing, winningBid);
+            listing.status = 'won';
+            await listing.save();
+          } catch (err) {
+            console.error(`[AuctionCycle] Failed to create auction for listing ${listing._id}:`, err);
+            // Optionally set to ended if creation fails, but risky for money.
+          }
+        } else {
+          // Bids count was > 0 but no bid found? Consistency check.
+          listing.status = 'ended';
+          await listing.save();
+        }
+      } else {
+        // No bids at all
+        listing.status = 'ended';
+        await listing.save();
+      }
+    }
 
     // Update ending soon (1 hour threshold)
     const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
     await ListingModel.updateMany(
       {
         auctionEndsAt: { $gt: now, $lte: oneHourFromNow },
-        status: { $ne: 'ending_soon' }
+        status: { $ne: 'ending_soon', $nin: ['won', 'settled', 'ended'] }
       },
       { $set: { status: 'ending_soon' } }
     );

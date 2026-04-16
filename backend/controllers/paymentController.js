@@ -2,14 +2,16 @@ const crypto = require('crypto');
 const razorpay = require('../config/razorpay');
 const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
+const { sendWhatsAppMessage } = require('../utils/whatsapp');
 
 // 1. CREATE RAZORPAY ORDER
 exports.createOrder = async (req, res) => {
   try {
-    const { amount, userId } = req.body;
+    const { amount } = req.body;
+    const userId = req.user.userId;
     
     if (!amount || !userId) {
-      return res.status(400).json({ success: false, message: 'Amount and userId are required' });
+      return res.status(400).json({ success: false, message: 'Amount is required' });
     }
 
     const options = {
@@ -36,12 +38,12 @@ exports.createOrder = async (req, res) => {
 exports.verifyPayment = async (req, res) => {
   try {
     const { 
-      userId, 
       amount, // Standard INR amount passed by frontend
       razorpay_order_id, 
       razorpay_payment_id, 
       razorpay_signature 
     } = req.body;
+    const userId = req.user.userId;
 
     const secret = process.env.RAZORPAY_KEY_SECRET || 'YourKeySecretHere';
 
