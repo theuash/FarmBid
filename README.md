@@ -1,392 +1,115 @@
-# FarmBid - Blockchain Agricultural Reverse Auction Platform
+# 🌾 FarmBid: Decentralized Agricultural Marketplace
 
-FarmBid is a full-stack application for agricultural reverse auctions with blockchain integration. The application has been fully segregated into a **standalone Node.js/Express backend** and a **Next.js frontend**.
+> **"Farmers set the price. Buyers compete upward. Blockchain guarantees it all."**
+
+FarmBid is a production-ready, full-stack agricultural reverse auction platform designed to empower farmers and agents while providing buyers with authentic, quality-verified produce. By leveraging blockchain for transparency and an omnichannel approach (Web + WhatsApp), FarmBid brings trust to the first-mile supply chain.
 
 ---
 
-## Architecture
+## 🚀 Key Modern Features
+
+### 💎 Transparency & Trust
+- **Blockchain Anchoring**: Every listing, bid, and settlement is anchored to the Polygon Mainnet (simulated with hash generation), creating a permanent, tamper-proof record.
+- **AI Quality Analysis**: Uses simulated computer vision to analyze produce photos, generating objective quality scores for Buyers.
+- **On-Chain Ledger**: A public timeline of all critical events to prevent data manipulation.
+
+### 📱 Omnichannel Access
+- **WhatsApp Bot**: Farmers and Agents can create listings, check prices, and receive real-time outbid notifications via WhatsApp.
+- **Agent Dashboard**: A specialized interface for Agents to manage multiple farmers, collect auction funds, and process producer payouts.
+
+### 💰 Secure Financial Loop
+- **Escrow Wallet**: Integrated buyer wallet where funds are locked during the bid phase and released only upon auction finalization.
+- **Integrated Payments**: Support for Razorpay and direct UPI QR code generation for seamless wallet top-ups.
+- **Agent Collections**: Automatic collection of auction wins into the Agent's ledger, with one-click payout capability to the original Producer.
+
+### ⚡ Real-Time Auction Engine
+- **Reverse Auctioning**: Buyers bid *upward* starting from the Farmer's reserve price.
+- **Real-Time Polling**: Frontend synchronizes automatically with the backend auction timer.
+- **Auto-Settlement**: Auctions finalize immediately upon expiry, deducting funds from the winner and creating order records.
+
+---
+
+## 🏗️ Architecture
 
 ```
 FarmBid/
-├── frontend/                    # Next.js Frontend
-│   ├── app/
-│   │   ├── layout.js
-│   │   ├── page.js             # Main application page
-│   │   └── globals.css
-│   ├── components/ui/          # UI component library
-│   ├── lib/
-│   ├── .env                    # Frontend configuration
-│   ├── package.json
-│   └── next.config.js
+├── frontend/                # Next.js 14 + Tailwind CSS + Shadcn UI
+│   ├── app/                 # Main App Router (Dashboard, Login, Orders)
+│   ├── components/ui/       # Premium UI component library
+│   └── lib/                 # Shared utilities
 │
-└── backend/                     # Node.js/Express Backend
-    ├── server.js               # Main Express server
-    ├── seed.js                 # Database seeder
-    ├── test.js                 # API test suite
-    ├── package.json
-    ├── .env.example
-    ├── config/
-    │   └── database.js         # MongoDB connection
-    ├── models/                 # Mongoose schemas
-    │   ├── Farmer.js
-    │   ├── Buyer.js
-    │   ├── Listing.js
-    │   ├── Bid.js
-    │   ├── Auction.js
-    │   ├── BlockchainEvent.js
-    │   ├── Dispute.js
-    │   ├── Delivery.js
-    │   ├── Wallet.js
-    │   └── WalletTransaction.js
-    ├── routes/                 # API route handlers
-    │   ├── listings.js
-    │   ├── bids.js
-    │   ├── farmers.js
-    │   ├── buyers.js
-    │   ├── auctions.js
-    │   ├── blockchain.js
-    │   ├── disputes.js
-    │   ├── deliveries.js
-    │   ├── admin.js
-    │   ├── quality.js
-    │   ├── wallet.js
-    │   └── orders.js
-    ├── middleware/
-    │   └── validation.js
-    └── utils/
-        ├── auctionTimer.js
-        └── blockchain.js
+└── backend/                 # Node.js + Express + MongoDB
+    ├── routes/              # Modular API handlers (Listings, Auctions, Wallet, etc.)
+    ├── models/              # Mongoose schemas for FarmBid ecosystem
+    ├── utils/               # WhatsApp client, Blockchain anchor, Wallet helpers
+    ├── services/            # ChatbotEngine, AIService, EscrowLogic
+    └── server.js            # Main entry point
 ```
 
 ---
 
-## Features
+## 🛠️ Installation & Setup
 
-### Core Functionality
-- **Reverse Auction System**: Farmers set the base price, buyers bid upwards
-- **Real-time Auction Timer**: Dynamic countdown with status updates
-- **Quality Analysis**: AI-powered produce quality scoring (simulated)
-- **Blockchain Anchoring**: All critical events anchored to Polygon Mainnet (simulated for MVP)
-- **Wallet Management**: Buyer wallet with escrow and settlement
-- **Dispute Resolution**: Weight mismatch, quality discrepancy handling
-- **Delivery Tracking**: Photo verification, geotagging, weight reconciliation
-- **Admin Dashboard**: KPIs, fraud detection, platform health monitoring
-- **Multi-language Support**: English, Hindi, Kannada (WhatsApp-style chat demo)
+### 1. Prerequisites
+- **Node.js**: v18+
+- **MongoDB**: Local or Atlas instance
+- **Dependencies**: React, Next.js, Express, Mongoose, WhatsApp-Web.js, Puppeteer.
 
-### API Endpoints
+### 2. Backend Config (`backend/.env`)
+```env
+PORT=3001
+MONGO_URL=your_mongodb_url
+DB_NAME=farmbid_db
+JWT_SECRET=your_jwt_secret
+CORS_ORIGINS=http://localhost:3000
+RAZORPAY_KEY_ID=your_key
+RAZORPAY_KEY_SECRET=your_secret
+```
 
-#### Listings
-- `GET /api/listings` - Get all active listings (with status-based filtering)
-- `GET /api/listings/:id` - Get specific listing with bids
-- `POST /api/listings` - Create new listing (anchored to blockchain)
+### 3. Frontend Config (`frontend/.env.local`)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
+NEXT_PUBLIC_RAZORPAY_KEY_ID=your_key
+```
 
-#### Bids
-- `POST /api/bids` - Place a bid (must be higher than current)
-- `GET /api/bids` - Get bids (filter by listingId)
-- `GET /api/bids/buyer/:buyerId` - Get buyer's bid history
-
-#### Farmers
-- `GET /api/farmers` - Get all farmers
-- `GET /api/farmers/:id` - Get farmer profile with listings
-- `GET /api/farmers/stats/summary` - Get farmer statistics
-
-#### Buyers
-- `GET /api/buyers` - Get all buyers
-- `GET /api/buyers/:id` - Get buyer profile with bids and won auctions
-- `GET /api/buyers/stats/summary` - Get buyer statistics
-
-#### Auctions
-- `GET /api/auctions/completed` - Get completed auctions with delivery info
-
-#### Blockchain
-- `GET /api/blockchain/events` - Get blockchain events (filterable by type/entityId)
-- `GET /api/blockchain/events/tx/:txHash` - Get specific transaction
-- `GET /api/blockchain/stats` - Get blockchain statistics
-
-#### Disputes
-- `GET /api/disputes` - Get all disputes
-- `POST /api/disputes` - File new dispute
-- `PUT /api/disputes/:id` - Update dispute status (admin)
-- `GET /api/disputes/auction/:auctionId` - Get dispute for auction
-
-#### Deliveries
-- `GET /api/deliveries` - Get all deliveries (filterable)
-- `POST /api/deliveries` - Schedule delivery
-- `PUT /api/deliveries/:id` - Update delivery status
-- `GET /api/deliveries/auction/:auctionId` - Get delivery for auction
-
-#### Admin
-- `GET /api/admin/kpis` - Platform key performance indicators
-- `GET /api/admin/districts` - District-wise statistics
-- `GET /api/admin/fraud-alerts` - Suspicious activity alerts
-- `GET /api/admin/platform-health` - 24-hour platform health metrics
-
-#### Quality
-- `POST /api/quality/analyze` - AI quality analysis (simulated)
-- `POST /api/quality/manual-score` - Manual quality scoring (admin)
-
-#### Wallet
-- `GET /api/wallet/balance?buyerId=:buyerId` - Get wallet balance
-- `POST /api/wallet/topup` - Top up wallet
-- `GET /api/wallet/transactions/:userId` - Transaction history
-- `GET /api/wallet/:userId` - Full wallet info
-
-#### Orders
-- `GET /api/orders` - Get orders for buyer/completed auctions
-- `GET /api/orders/:id` - Get order details
-
----
-
-## Prerequisites
-
-- **Node.js** (v18 or higher)
-- **MongoDB** (v6.0 or higher) - running locally or accessible remotely
-- **npm** or **yarn** package manager
-
----
-
-## Quick Start
-
-### 1. Clone and Setup
-
+### 4. Running the App
 ```bash
-# Navigate to project directory
-cd E:/Hackthon/BGSCET/BGSCET/FarmBid
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
-
-# Install backend dependencies
+# Terminal 1: Backend
 cd backend
 npm install
-cd ..
-```
+npm run dev
 
-### 2. Configure Environment
-
-The frontend uses `.env`:
-```env
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:3001/api
-```
-
-The backend uses `backend/.env` (copy from `.env.example`):
-```env
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=farmbid_db
-PORT=3001
-CORS_ORIGINS=http://localhost:3000
-```
-
-### 3. Start MongoDB
-
-Make sure MongoDB is running:
-
-```bash
-# On Windows (if MongoDB is in PATH)
-mongod
-
-# Or using Docker
-docker run -d -p 27017:27017 --name mongodb mongo:latest
-```
-
-### 4. Seed the Database
-
-```bash
-npm run backend:seed
-```
-
-This will populate the database with sample farmers, buyers, listings, bids, and blockchain events.
-
-### 5. Start the Backend Server
-
-```bash
-# Development mode (with auto-reload)
-npm run backend:dev
-
-# Or production mode
-npm run backend:start
-```
-
-The backend API will be available at `http://localhost:3001/api`
-
-### 6. Start the Frontend (in another terminal)
-
-```bash
+# Terminal 2: Frontend
+cd frontend
+npm install
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:3000`
+---
+
+## 📖 Role Workflows
+
+### 👨‍🌾 The Agent
+1. **List Produce**: Upload produce details via Web or WhatsApp.
+2. **Track Auctions**: Monitor live bidding on the Dashboard.
+3. **Collect Funds**: After auction ends, funds appear in the "Collected Funds" ledger.
+4. **Pay Farmer**: Click "Pay Farmer" to record the payout and notify the producer.
+
+### 🛒 The Buyer
+1. **Browse**: Explore quality-verified listings.
+2. **Bid**: Place bids with locked escrow.
+3. **Pay**: Top up wallet via UPI/Razorpay.
+4. **Track**: Monitor won auctions in "My Orders".
 
 ---
 
-## Testing
-
-### Backend API Tests
-
-```bash
-# Make sure backend server is running on port 3001
-npm run backend:start
-
-# In another terminal, run the test suite
-npm run backend:test
-```
-
-Or run directly:
-```bash
-cd backend
-node test.js
-```
-
-### Manual API Testing
-
-The backend provides a comprehensive health check endpoint:
-
-```bash
-curl http://localhost:3001/api/health
-```
+## 🛡️ Security & Performance
+- **Rate Limiting**: Express-rate-limit prevents bot spam on the API.
+- **Transaction Safety**: Atomic wallet updates using Mongoose.
+- **JWT Protection**: Secure authentication flows for sensitive operations.
+- **Graceful Fault Tolerance**: WhatsApp client stays alive even if Puppeteer contexts fail occasionally.
 
 ---
 
-## Project Structure
-
-### Frontend (`/frontend`)
-
-The Next.js frontend is a single-page application with:
-- `frontend/app/page.js`: Main component with full UI logic
-- `frontend/app/layout.js`: Root layout with theme provider
-- `frontend/components/ui/`: Radix UI based component library
-- All UI in one file for rapid development
-
-### Backend (`/backend`)
-
-Enterprise-grade Node.js/Express backend:
-- **MongoDB + Mongoose**: Persistent data storage with relationships
-- **CORS Enabled**: Allows requests from frontend origin
-- **Validation**: Request validation via express-validator
-- **Security**: Helmet.js security headers, rate limiting
-- **Logging**: Morgan HTTP request logging
-- **Blockchain**: Simulated anchoring (ready for real Web3 integration)
-- **RESTful API**: All endpoints follow REST conventions
-
----
-
-## Database Schema
-
-### Models
-
-1. **Farmer**: Farmer profiles with verification status, crops, location
-2. **Buyer**: Buyer profiles with wallet, trust score, type
-3. **Listing**: Auction listings with quality metrics, timer
-4. **Bid**: Individual bids placed by buyers
-5. **Auction**: Completed auction/settlement records
-6. **BlockchainEvent**: All blockchain transaction records
-7. **Dispute**: Dispute cases with resolution tracking
-8. **Delivery**: Delivery records with photos, geotags
-9. **Wallet**: Wallet balances and KYC status
-10. **WalletTransaction**: Transaction history
-
----
-
-## API Response Format
-
-All API responses follow this structure:
-
-```json
-{
-  "success": true,
-  "data": "...",
-  "error": "Error message if any"
-}
-```
-
-Exceptions include list endpoints which directly contain the array with a `count` field.
-
----
-
-## Development Notes
-
-### Updating Models
-
-If you modify any model in `/backend/models`, you should:
-1. Update the seed data in `backend/seed.js` if needed
-2. Re-run seeding if structural changes require new data
-
-### Adding New Endpoints
-
-1. Create/update route handler in corresponding file in `/backend/routes/`
-2. Add validation rules in `backend/middleware/validation.js` if needed
-3. Update the `backend/seed.js` if new data is needed
-4. Update frontend `app/page.js` to call the new endpoint
-
-### Blockchain Integration
-
-The blockchain integration is currently simulated in `backend/utils/blockchain.js`. To integrate with real Polygon/Ethereum:
-
-1. Install Web3 provider: `npm install ethers` or `viem`
-2. Update `anchorToBlockchain()` function to make actual contract calls
-3. Add smart contract ABIs to `/backend/contracts/`
-4. Configure network provider URL in `.env`
-
----
-
-## Deployment
-
-### Backend
-
-```bash
-cd backend
-npm install --production
-NODE_ENV=production npm start
-```
-
-### Frontend
-
-```bash
-npm install
-npm run build
-npm start
-```
-
-### Environment Variables
-
-Ensure production `.env` files have correct values:
-- MongoDB connection string
-- CORS origins for production domain
-- Blockchain provider URL (when integrating)
-
----
-
-## Troubleshooting
-
-### MongoDB Connection Error
-- Ensure MongoDB is running: `mongod` or Docker container
-- Check connection string in `backend/.env`
-- Verify port 27017 is available
-
-### CORS Errors
-- Check `CORS_ORIGINS` setting in `backend/.env`
-- Frontend must use `NEXT_PUBLIC_API_URL` matching CORS origin
-
-### Port Already in Use
-- Backend default: 3001
-- Frontend default: 3000
-- Change ports in `.env` files if needed
-
-### API Returns Empty Data
-- Ensure database is seeded: `npm run backend:seed`
-- Check MongoDB is connected (backend console shows "MongoDB Connected")
-
----
-
-## License
-
-MIT License - FarmBid Platform
-
----
-
-## Support
-
-For issues or questions, please refer to the project repository or contact the development team.
+## 📜 License
+© 2026 FarmBid - Empowering Rural Producers. Built for the Future of Agriculture.
